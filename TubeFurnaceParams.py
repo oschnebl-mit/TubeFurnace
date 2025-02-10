@@ -10,43 +10,50 @@ class TubeFurnaceParams(ParameterTree):
                 {'name':'Time','type':'int', 'value':'20'},
                 {'name':'Temperature','type':'int','value':'300'},
                 {'name':'Ar Flow','type':'int','value':'75'},
-                {'name':'H2S Flow','type':'int','value':'0'}
+                {'name':'H2S Flow','type':'int','value':'0'},
+                {'name':'Wait for','type':'list','limits':['Time','Temp']}
             ]},
             {'name':'Segment 2','type':'group','children':[
                 {'name':'Time','type':'int', 'value':'20'},
                 {'name':'Temperature','type':'int','value':'300'},
                 {'name':'Ar Flow','type':'int','value':'75'},
-                {'name':'H2S Flow','type':'int','value':'0'}
+                {'name':'H2S Flow','type':'int','value':'0'},
+                {'name':'Wait for','type':'list','limits':['Time','Temp']}
             ]},
             {'name':'Segment 3','type':'group','children':[
                 {'name':'Time','type':'int', 'value':'20'},
                 {'name':'Temperature','type':'int','value':'300'},
                 {'name':'Ar Flow','type':'int','value':'75'},
-                {'name':'H2S Flow','type':'int','value':'0'}
+                {'name':'H2S Flow','type':'int','value':'0'},
+                {'name':'Wait for','type':'list','limits':['Time','Temp']}
             ]},
             {'name':'Segment 4','type':'group','children':[
                 {'name':'Time','type':'int', 'value':'20'},
                 {'name':'Temperature','type':'int','value':'300'},
                 {'name':'Ar Flow','type':'int','value':'75'},
-                {'name':'H2S Flow','type':'int','value':'0'}
+                {'name':'H2S Flow','type':'int','value':'0'},
+                {'name':'Wait for','type':'list','limits':['Time','Temp']}
             ]},
             {'name':'Segment 5','type':'group','children':[
                 {'name':'Time','type':'int', 'value':'0'},
                 {'name':'Temperature','type':'int','value':'25'},
                 {'name':'Ar Flow','type':'int','value':'0'},
-                {'name':'H2S Flow','type':'int','value':'0'}
+                {'name':'H2S Flow','type':'int','value':'0'},
+                {'name':'Wait for','type':'list','limits':['Time','Temp']}
             ]},
             {'name':'Segment 6','type':'group','children':[
                 {'name':'Time','type':'int', 'value':'0'},
                 {'name':'Temperature','type':'int','value':'25'},
                 {'name':'Ar Flow','type':'int','value':'0'},
-                {'name':'H2S Flow','type':'int','value':'0'}
+                {'name':'H2S Flow','type':'int','value':'0'},
+                {'name':'Wait for','type':'list','limits':['Time','Temp']}
             ]},
             {'name':'Segment 7','type':'group','children':[
                 {'name':'Time','type':'int', 'value':'0'},
                 {'name':'Temperature','type':'int','value':'25'},
                 {'name':'Ar Flow','type':'int','value':'0'},
-                {'name':'H2S Flow','type':'int','value':'0'}
+                {'name':'H2S Flow','type':'int','value':'0'},
+                {'name':'Wait for','type':'list','limits':['Time','Temp']}
             ]},
             {'name':'Segment 8','type':'group','children':[
                 {'name':'Time','type':'int', 'value':'0'},
@@ -58,13 +65,15 @@ class TubeFurnaceParams(ParameterTree):
                 {'name':'Time','type':'int', 'value':'0'},
                 {'name':'Temperature','type':'int','value':'25'},
                 {'name':'Ar Flow','type':'int','value':'0'},
-                {'name':'H2S Flow','type':'int','value':'0'}
+                {'name':'H2S Flow','type':'int','value':'0'},
+                {'name':'Wait for','type':'list','limits':['Time','Temp']}
             ]},
             {'name':'Segment 10','type':'group','children':[
                 {'name':'Time','type':'int', 'value':'0'},
                 {'name':'Temperature','type':'int','value':'25'},
                 {'name':'Ar Flow','type':'int','value':'0'},
-                {'name':'H2S Flow','type':'int','value':'0'}
+                {'name':'H2S Flow','type':'int','value':'0'},
+                {'name':'Wait for','type':'list','limits':['Time','Temp']}
             ]}
         ]
 

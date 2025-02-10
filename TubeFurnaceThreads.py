@@ -27,9 +27,9 @@ class MFCControl(QtCore.QThread):
         self.delay = delay
 
     def run(self):
+        ## normal running behavior reads sccm for active gases every [delay] seconds and sends to main
         self.running = True
         while self.running:
-            ## normal running behavior reads sccm for active gases every [delay] seconds and sends to main
             Ar_sccm = self.get_data(self.gas_ids['Ar'])['sccm']
             H2S_sccm = self.get_data(self.gas_ids['H2S'])['sccm']
             self.new_Ar_data.emit(Ar_sccm)
@@ -79,7 +79,7 @@ class MFCControl(QtCore.QThread):
 
 
 class PressureGauge(QtCore.QThread):
-    new_pressure_data = QtCore.pyqtSignal(object)
+    new_pressure_data = QtCore.pyqtSignal(float)
 
     def __init__(self,logger, delay = 30, testing = False):
         super().__init__()
@@ -88,17 +88,18 @@ class PressureGauge(QtCore.QThread):
         self.testing = testing
         self.running = False
 
-        self.connection = GenericSerialDeivce(com_port = 6, testing = testing, name = 'Pressure Gauge')
+        self.connection = GenericSerialDevice(com_port = 6, testing = testing, name = 'Pressure Gauge')
 
     def run(self):
         self.running = True
         while self.running:
             measured_pressure = self.getPressure()
             self.new_pressure_data.emit(measured_pressure)
-            QtCore.QThread.msleep(self.delay*1e3)
+            QtCore.QThread.msleep(self.delay*1000)
 
     def getPressure(self):
         if self.testing:
+            print(f' testing: get Pressure\n')
             return 100.0
         else:
             try:
@@ -128,16 +129,22 @@ class FurnaceControl(QtCore.QThread):
         ## maybe a bit confusing, but run only tracks temp, doesn't start furnace
         self.running = True
         while self.running:
-            if self.testing:
-                self.new_temp_data.emit([25,25,25])
-            else:
-                data = []
-                for zone_number in (1,2,3):
-                    response = self.connection.ask(f'\x020{zone_number}010WRDD0003,01\x03')
-                    data.append(int(response.split('OK')[1][0:4],16))
+            new_data = self.getAllTemperatures()
+            self.new_temp_data.emit(new_data)
+            QtCore.QThread.msleep(self.delay*1000)
 
-                self.new_temp_data.emit(data)
-                QtCore.QThread.msleep(self.delay*1e3)
+
+    def getAllTemperatures(self):
+        if self.testing:
+            print('testing: get All temps \n')
+            return [20,25,23]
+        else:
+            data = []
+            for zone_number in (1,2,3):
+                response = self.connection.ask(f'\x020{zone_number}010WRDD0003,01\x03')
+                data.append(int(response.split('OK')[1][0:4],16))
+            return data
+
 
     def programFurnace(self,*args):
         ## args should be tuples (setpoint, segment time)
