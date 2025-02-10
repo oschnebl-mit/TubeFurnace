@@ -3,7 +3,7 @@ from datetime import datetime
 from time import sleep, time
 import numpy as np
 from pyqtgraph.Qt import QtCore
-from TubeFurnaceController import GenericSerialDeivce
+from TubeFurnaceController import GenericSerialDevice
 
 class MFCControl(QtCore.QThread):
 
@@ -75,6 +75,7 @@ class MFCControl(QtCore.QThread):
     def stop_all_gas_flows(self):
         for gas_name, gas_id_letter in self.gas_ids.items():
             self.set_sccm(gas_name, 0)
+        self.logger.debug(f'Setting all gas flows to 0')
 
 
 class PressureGauge(QtCore.QThread):
@@ -124,6 +125,7 @@ class FurnaceControl(QtCore.QThread):
                                                           name='Temperature Controller')
     
     def run(self):
+        ## maybe a bit confusing, but run only tracks temp, doesn't start furnace
         self.running = True
         while self.running:
             if self.testing:
@@ -135,3 +137,35 @@ class FurnaceControl(QtCore.QThread):
                     data.append(int(response.split('OK')[1][0:4],16))
 
                 self.new_temp_data.emit(data)
+                QtCore.QThread.msleep(self.delay*1e3)
+
+    def programFurnace(self,*args):
+        ## args should be tuples (setpoint, segment time)
+        if len(args) > 16:
+            self.logger.exception(f'Too many segments')
+            return -1
+        else:
+            for (setpoint,time) in args:
+                register = 229
+                i = 1
+                for zone_number in (1,2,3):
+                    command = f'\x020{zone_number}010WWRD0{register},01,{setpoint:04X}\x03\r'
+                    response = self.connection.ask(command)
+                    self.logger.info(f'Setting zone {zone_number} setpoint {i} to {setpoint}...{response}')
+                    command = f'\x020{zone_number}010WWRD0{register+1},01,{time:04X}\x03\r'
+                    response = self.connection.ask(command)
+                    self.logger.info(f'Setting zone {zone_number} segment time {i} to {time}...{response}')
+                    register += 2
+                    i += 1
+
+    def changeMode(self, mode: int):
+        for zone_number in (1,2,3):
+            command = f'\x020{zone_number}010WWRD0121,01,{mode:0x4}\x03\r'
+            response = self.connection.ask(command)
+            self.logger.info(f'Setting zone {zone_number} to mode {mode}...{response}')
+
+    def startFurnace(self):
+        self.changeMode(1)
+    def stopFurance(self):
+        self.changeMode(0)
+
