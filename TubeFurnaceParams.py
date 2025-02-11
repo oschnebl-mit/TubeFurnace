@@ -80,5 +80,5 @@ class TubeFurnaceParams(ParameterTree):
         self.p = Parameter.create(name='self.params',type='group',children=self.params)
         self.setParameters(self.p,showTop=False)
 
-    def getValue(self,segment:int, branch, child):
-        return self.p.param(f'Segment {segment}',branch,child).value()
+    def getValue(self,segment:int, child):
+        return self.p.param(f'Segment {segment}',child).value()

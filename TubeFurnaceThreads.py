@@ -80,7 +80,7 @@ class MFCControl(QtCore.QThread):
 
 class PressureGauge(QtCore.QThread):
     new_pressure_data = QtCore.pyqtSignal(float)
-
+    ## Add an overpressure signal
     def __init__(self,logger, delay = 30, testing = False):
         super().__init__()
         self.logger = logger
@@ -165,7 +165,7 @@ class FurnaceControl(QtCore.QThread):
                     register += 2
                     i += 1
 
-    def changeMode(self, mode: int):
+    def changeMode(self, mode: float):
         for zone_number in (1,2,3):
             command = f'\x020{zone_number}010WWRD0121,01,{mode:0x4}\x03\r'
             response = self.connection.ask(command)
