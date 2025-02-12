@@ -46,7 +46,7 @@ class MainControlWindow(qw.QMainWindow):
         # print('made temp plot')
         self.pressurePlot = BasicLoggingPlot('Pressure','Torr','#FE53BB')
         # print('made pressure plot')
-        self.flowPlot = BasicLoggingPlot('Flow','sccm','#08F7FE')
+        self.flowPlot = BasicLoggingPlot('Flow','sccm','#F5D300')
         # print('made flow plot')
         self.currentProcessPlot = pg.PlotWidget()
         # print('made empty CPP')
