@@ -1,4 +1,4 @@
-import sys,qdarkstyle, logging
+import sys, logging
 from time import time, sleep
 from PyQt5 import QtGui,QtCore
 import PyQt5.QtWidgets as qw 
@@ -308,7 +308,8 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     logger.addHandler(logging.NullHandler())
     app = qw.QApplication(sys.argv)
-    app.setStyleSheet(qdarkstyle.load_stylesheet())
+    if qdarkstyle in sys.modules:
+        app.setStyleSheet(qdarkstyle.load_stylesheet())
 
     window = MainControlWindow(logger = logger, testing = True)
     
