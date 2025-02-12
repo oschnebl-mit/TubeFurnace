@@ -120,7 +120,7 @@ class MainControlWindow(qw.QMainWindow):
         self.Furnace.programFurnace(furnace_params)
 
         self.Furnace.start()
-        for si in range(len(self.tree.children)):
+        for si in range(len(self.tree.children)): ## TypeError: object of type 'builtin_function_or_method' has no len()
             ## Add condition to finish if segment is all zeros
             if self.tree.getValue(si,'Wait for') == 'Time':
                 self.MFC.set_sccm('Ar',int(self.tree.getValue(si,'Ar Flow')))
@@ -308,7 +308,8 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     logger.addHandler(logging.NullHandler())
     app = qw.QApplication(sys.argv)
-    if qdarkstyle in sys.modules:
+    if "qdarkstyle" in sys.modules:
+        import qdarkstyle
         app.setStyleSheet(qdarkstyle.load_stylesheet())
 
     window = MainControlWindow(logger = logger, testing = True)
