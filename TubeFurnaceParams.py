@@ -1,7 +1,8 @@
 import pyqtgraph as pg
 from pyqtgraph.parametertree import Parameter, ParameterTree
+from pyqtgraph import QtCore
 
-class TubeFurnaceParams(ParameterTree):
+class ProcessParams(ParameterTree):
     def __init__(self):
         super().__init__()
 
@@ -82,3 +83,33 @@ class TubeFurnaceParams(ParameterTree):
 
     def getValue(self,segment:int, child):
         return self.p.param(f'Segment {segment}',child).value()
+
+class OtherParams(ParameterTree):
+    
+    log_interval_change = QtCore.pyqtSignal(object)
+
+    def __init__(self):
+        super().__init__()
+        self.running_explode = False
+        self.params = [
+            {'name':'Logging Interval (s)','type':'int','value':'30'},
+            {'name':'Overpressure Limit (Torr)','type':'int','value':'800'},
+            {'name':'Fill Parameters','type':'group','children':[
+                {'name':'Approach Pressure (Torr)','type':'int','value':'745'},
+                {'name':'Fill Pressure (Torr)','type':'int','value':'750'},
+                {'name':'Approach Ar Flow (sccm)','type':'int','value':'100'},
+                {'name':'Fill Ar Flow (sccm)','type':'int','value':'1000'}
+            ]}
+        ]
+        self.p = Parameter.create(name='self.params',type='group',children=self.params)
+        self.setParameters(self.p,showTop=False)
+
+        self.p.child('Logging Interval (s)').sigValueChanged.connect(self.emitChange)
+
+    def emitChange(self):
+        self.log_interval_change.emit(self.getValue('Logging Interval (s)'))
+
+    def getValue(self,child):
+        return self.p.param(child).value()
+    def getFillValue(self,child):
+        return self.p.param('Fill Parameters',child).value()

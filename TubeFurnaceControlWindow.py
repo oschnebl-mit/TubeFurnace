@@ -6,7 +6,7 @@ import pyqtgraph as pg
 import numpy as np
 
 from TubeFurnaceThreads import PressureGauge, MFCControl, FurnaceControl
-from TubeFurnaceParams import TubeFurnaceParams
+from TubeFurnaceParams import ProcessParams, OtherParams
 
 class MainControlWindow(qw.QMainWindow):
     def __init__(self, logger, testing = False):
@@ -39,14 +39,19 @@ class MainControlWindow(qw.QMainWindow):
 
         ########################
 
-        self.tree = TubeFurnaceParams()
+        self.tree = ProcessParams()
+        self.othertree = OtherParams()
 
         self.tempPlot = TempLoggingPlot('Furnace Temperature','C','#08F7FE')
+        # print('made temp plot')
         self.pressurePlot = BasicLoggingPlot('Pressure','Torr','#FE53BB')
+        # print('made pressure plot')
         self.flowPlot = BasicLoggingPlot('Flow','sccm','#08F7FE')
+        # print('made flow plot')
         self.currentProcessPlot = pg.PlotWidget()
+        # print('made empty CPP')
         self.cp2 = None ## second trace on current process plot
-
+        # print('made empty CP2')
 
         self.startLoggingButton = qw.QPushButton("Start Logging") ## in the future make this a toggle?
         self.fillButton = qw.QPushButton("Bring tube to atmospheric pressure")
@@ -56,6 +61,8 @@ class MainControlWindow(qw.QMainWindow):
         self.delayInput = qw.QLineEdit('10')
         self.delayInput.setValidator(QtGui.QIntValidator())
 
+        self.othertree.log_interval_change.connect(self.updateDelay)
+
         self.startLoggingButton.clicked.connect(self.startThreads)
         self.fillButton.clicked.connect(self.fillTube)
         self.startProcessButton.clicked.connect(self.runProcess)
@@ -63,32 +70,35 @@ class MainControlWindow(qw.QMainWindow):
         self.delayInput.returnPressed.connect(self.updateDelay)
 
         ## grid layout adds as                   r c rs cs (last 2 are rowspan, colspan)
-        layout.addWidget(self.tree,              0,0,5, 1)
-        layout.addWidget(self.currentProcessPlot,6,0,3, 2)
+        layout.addWidget(self.tree,              0,0,6, 1)
+        layout.addWidget(self.currentProcessPlot,7,0,6, 2)
 
-        layout.addWidget(self.startLoggingButton,0,1,1, 1)
-        layout.addWidget(self.delayInputLabel,   1,1,1, 1)
-        layout.addWidget(self.delayInput,        2,1,1, 1)
-        layout.addWidget(self.startProcessButton,3,1,1, 1)
-        layout.addWidget(self.fillButton,        4,1,1, 1)
-        layout.addWidget(self.abortProcessButton,5,1,1, 1)
+        layout.addWidget(self.othertree,         0,1,3, 1)
+        layout.addWidget(self.startLoggingButton,3,1,1, 1)
+        # layout.addWidget(self.delayInputLabel,   1,1,1, 1)
+        # layout.addWidget(self.delayInput,        2,1,1, 1)
+        layout.addWidget(self.startProcessButton,4,1,1, 1)
+        layout.addWidget(self.fillButton,        5,1,1, 1)
+        layout.addWidget(self.abortProcessButton,6,1,1, 1)
 
-        layout.addWidget(self.tempPlot,          0,2,3, 1)
-        layout.addWidget(self.pressurePlot,      3,2,3, 1)
-        layout.addWidget(self.flowPlot,          6,2,3, 1)
+        layout.addWidget(self.tempPlot,          0,2,4, 1)
+        layout.addWidget(self.pressurePlot,      4,2,5, 1)
+        layout.addWidget(self.flowPlot,          9,2,4, 1)
 
-        for r in range(9):
+        for r in range(12):
             layout.setRowStretch(r,1)
 
         
 
     def initThreads(self):
         self.MFC = MFCControl(logger=self.logger,delay=self.delay,testing=self.testing)
-        self.PGauge = PressureGauge(logger=self.logger,delay=self.delay,testing=self.testing)
+        self.PGauge = PressureGauge(overpressure_limit=800,logger=self.logger,delay=self.delay,testing=self.testing)
         self.Furnace = FurnaceControl(logger=self.logger,delay=self.delay,testing=self.testing)
 
+        self.PGauge.overpressure_error.connect(self.abortProcess)
         self.PGauge.new_pressure_data.connect(self.pressurePlot.update)
-        self.Furnace.new_temp_data.connect(self.tempPlot.update) ## holding off because this is a list
+        self.Furnace.new_temp_data.connect(self.tempPlot.update) 
+        self.MFC.new_Ar_data.connect(self.flowPlot.update) ## also need to connect new H2S data
 
     def startThreads(self):
         self.MFC.start()
@@ -130,14 +140,11 @@ class MainControlWindow(qw.QMainWindow):
                 break
             sleep(60)
 
-
-
-
-
-
     def fillTube(self):
         ## Flow Ar until tube is at atmospheric pressure
-        self.stopPressure = 750
+        print("Fill tube with Ar")
+        print(self.othertree.getFillValue('Approach Pressure (Torr)'))
+        # self.stopPressure = self.othertree.getValue('Fill Parameters','Fill Pressure (Torr)')
         self.approachPressure = 700
         self.initFlow = 100
         self.finalFlow = 1000
@@ -227,7 +234,8 @@ class MainControlWindow(qw.QMainWindow):
         self.sccm_Ar_trace.setData(self.time_data,self.sccm_Ar_data)
     
     def updateDelay(self):
-        self.delay = int(self.delayInput.text())
+        # self.delay = int(self.delayInput.text())
+        self.delay = self.othertree.p.param('Logging Interval (s)').value()
         print(f'change delay to {self.delay}')
 
         self.MFC.delay = self.delay
@@ -241,6 +249,7 @@ class TempLoggingPlot(pg.PlotWidget):
         self.trace_list = []
         for zone in (1,2,3):
             trace = self.plot(x=[time()],y=[1],pen=pg.mkPen(color=color,width=2))
+            # print(f'made trace {zone} for temp logging plot')
             self.trace_list.append(trace)
         self.setLabel('left',ylabel,units=yunits,color=color)
     def update(self,new_data):
@@ -257,6 +266,7 @@ class BasicLoggingPlot(pg.PlotWidget):
         # self.plot = pg.PlotWidget()
         self.getPlotItem().showGrid(x=True, y=True, alpha=1)
         self.trace = self.plot(x=[time()],y=[1],pen=pg.mkPen(color=color,width=2))
+        # print('made trace on Basic Logging Plot')
         self.setLabel('left',ylabel,units=yunits,color=color)
 
     def update(self,new_data):

@@ -80,10 +80,12 @@ class MFCControl(QtCore.QThread):
 
 class PressureGauge(QtCore.QThread):
     new_pressure_data = QtCore.pyqtSignal(float)
+    overpressure_error = QtCore.pyqtSignal(bool)
     ## Add an overpressure signal
-    def __init__(self,logger, delay = 30, testing = False):
+    def __init__(self,overpressure_limit, logger, delay = 30, testing = False):
         super().__init__()
         self.logger = logger
+        self.overpressure_limit = overpressure_limit
         self.delay = delay
         self.testing = testing
         self.running = False
@@ -95,6 +97,8 @@ class PressureGauge(QtCore.QThread):
         while self.running:
             measured_pressure = self.getPressure()
             self.new_pressure_data.emit(measured_pressure)
+            if measured_pressure > self.overpressure_limit:
+                self.overpressure_error.emit(True)
             QtCore.QThread.msleep(self.delay*1000)
 
     def getPressure(self):
