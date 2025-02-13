@@ -14,7 +14,7 @@ class MFCControl(QtCore.QThread):
     'FG': 'D',
     'H2S': 'E',
     'H2Se': 'F'
-}
+    }
     new_Ar_data = QtCore.pyqtSignal(object)
     new_H2S_data = QtCore.pyqtSignal(object)
 
@@ -156,9 +156,10 @@ class FurnaceControl(QtCore.QThread):
             self.logger.exception(f'Too many segments')
             return -1
         else:
-            for (setpoint,time) in args:
-                register = 229
-                i = 1
+            register = 229
+            i = 1
+            for (setpoint,time) in args[0]:
+                print(setpoint,time)
                 for zone_number in (1,2,3):
                     command = f'\x020{zone_number}010WWRD0{register},01,{setpoint:04X}\x03\r'
                     response = self.connection.ask(command)
@@ -166,12 +167,12 @@ class FurnaceControl(QtCore.QThread):
                     command = f'\x020{zone_number}010WWRD0{register+1},01,{time:04X}\x03\r'
                     response = self.connection.ask(command)
                     self.logger.info(f'Setting zone {zone_number} segment time {i} to {time}...{response}')
-                    register += 2
-                    i += 1
+                register = register + 2
+                i += 1
 
     def changeMode(self, mode: float):
         for zone_number in (1,2,3):
-            command = f'\x020{zone_number}010WWRD0121,01,{mode:0x4}\x03\r'
+            command = f'\x020{zone_number}010WWRD0121,01,{mode:04X}\x03\r'
             response = self.connection.ask(command)
             self.logger.info(f'Setting zone {zone_number} to mode {mode}...{response}')
 

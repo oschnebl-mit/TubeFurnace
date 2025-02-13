@@ -33,20 +33,25 @@ class MainControlWindow(qw.QMainWindow):
         self.mainbox.setLayout(layout)  # set the layout\
 
         ## ~~ Colors ~~ ####
-        self.pressurePen = pg.mkPen(color='#FE53BB',width=2)
-        self.flowPen = pg.mkPen(color='#F5D300',width=2)
-        self.tempPen = pg.mkPen(color='#08F7FE',width=2)
+        self.pressurePen = pg.mkPen(color='#5DB4B7',width=2)
+        self.flowPen = pg.mkPen(color='#DFC245',width=2)
+        self.tempPen = pg.mkPen(color='#CC3300',width=3)
+
+        self.h2sColor = '#DFC245'
+        self.arColor = '#C1DE55'
+        self.pressureColor = '#5DB4B7'
+        self.tempColor = '#CC3300'
 
         ########################
 
         self.tree = ProcessParams()
         self.othertree = OtherParams()
 
-        self.tempPlot = TempLoggingPlot('Furnace Temperature','C','#08F7FE')
+        self.tempPlot = TempLoggingPlot('Temperature','C',self.tempColor)
         # print('made temp plot')
-        self.pressurePlot = BasicLoggingPlot('Pressure','Torr','#FE53BB')
+        self.pressurePlot = BasicLoggingPlot('Pressure','Torr',self.pressureColor)
         # print('made pressure plot')
-        self.flowPlot = BasicLoggingPlot('Flow','sccm','#F5D300')
+        self.flowPlot = FlowLoggingPlot('Flow','sccm',self.arColor,self.h2sColor)
         # print('made flow plot')
         self.currentProcessPlot = pg.PlotWidget()
         # print('made empty CPP')
@@ -98,15 +103,18 @@ class MainControlWindow(qw.QMainWindow):
         self.PGauge.overpressure_error.connect(self.abortProcess)
         self.PGauge.new_pressure_data.connect(self.pressurePlot.update)
         self.Furnace.new_temp_data.connect(self.tempPlot.update) 
-        self.MFC.new_Ar_data.connect(self.flowPlot.update) ## also need to connect new H2S data
+        self.MFC.new_Ar_data.connect(self.flowPlot.updateAr)
+        self.MFC.new_H2S_data.connect(self.flowPlot.updateH2S)
 
     def startThreads(self):
         self.MFC.start()
         self.PGauge.start()
-        self.Furnace.start()
+        self.Furnace.start() ## this is just logging the temperature
 
     def abortProcess(self):
-        # self.Furnace.stopFurance()
+        ''' Set furnace mode to reset and all gas flows to 0
+        Nothing toggles so fine to run repeatedly '''
+        self.Furnace.stopFurance() 
         self.MFC.stop_all_gas_flows()
         if self.timer is not None:
             print('stopping timer')
@@ -115,12 +123,15 @@ class MainControlWindow(qw.QMainWindow):
     def runProcess(self):
         ## for programFurnace need to construct a list of tuples: (SP, TM)
         furnace_params = []
-        for si in range(len(self.tree.children)):
+        for si in range(1,len(self.tree.p.children())):
+            # if self.tree.getValue(si,'Time') == 0:
+            #     break
             furnace_params.append((self.tree.getValue(si,'Temperature'),self.tree.getValue(si,'Time')))
         self.Furnace.programFurnace(furnace_params)
 
-        self.Furnace.start()
-        for si in range(len(self.tree.children)): ## TypeError: object of type 'builtin_function_or_method' has no len()
+        ## start the furnace running the program defined above
+        self.Furnace.startFurnace() 
+        for si in range(1,len(self.tree.children())): ## TypeError: object of type 'builtin_function_or_method' has no len()
             ## Add condition to finish if segment is all zeros
             if self.tree.getValue(si,'Wait for') == 'Time':
                 self.MFC.set_sccm('Ar',int(self.tree.getValue(si,'Ar Flow')))
@@ -154,7 +165,7 @@ class MainControlWindow(qw.QMainWindow):
         if self.cp2 is not None:
             self.cp2.clear()
         
-        self.currentProcessPlot.setLabel('left',"Pressure",units = 'Torr',color='#FE53BB',**{'font-size': '12pt'})
+        self.currentProcessPlot.setLabel('left',"Pressure",units = 'Torr',color=self.pressureColor,**{'font-size': '12pt'})
         self.currentProcessPlot.setLabel('bottom','Time',units='s',color='#e0e0e0',**{'font-size':'12pt'})
         ### for second trace #######
         self.cp2 = pg.ViewBox()
@@ -162,7 +173,7 @@ class MainControlWindow(qw.QMainWindow):
         self.currentProcessPlot.scene().addItem(self.cp2)
         self.currentProcessPlot.getAxis('right').linkToView(self.cp2)
         self.cp2.setXLink(self.currentProcessPlot)
-        self.currentProcessPlot.setLabel('right',"Ar Flow",units='sccm',color='#F5D300',**{'font-size':'12pt'})
+        self.currentProcessPlot.setLabel('right',"Ar Flow",units='sccm',color=self.arColor,**{'font-size':'12pt'})
         self.updateViews()
         self.currentProcessPlot.getViewBox().sigResized.connect(self.updateViews)
         #################
@@ -245,10 +256,17 @@ class MainControlWindow(qw.QMainWindow):
 class TempLoggingPlot(pg.PlotWidget):
     def __init__(self,ylabel,yunits,color):
         super().__init__()
-        self.getPlotItem().showGrid(x=True,y=True,alpha=1)
+        self.getPlotItem().showGrid(x=True,y=True,alpha=0.5)
         self.trace_list = []
         for zone in (1,2,3):
-            trace = self.plot(x=[time()],y=[1],pen=pg.mkPen(color=color,width=2))
+            #  pen = pg.mkPen(color='{}{:02x}'.format(color, alpha), width=lw,connect="finite")
+            if zone == 2:
+                w = 4
+                alpha = 250
+            else:
+                w = 3
+                alpha = 100
+            trace = self.plot(x=[time()],y=[1],pen=pg.mkPen(color='{}{:02x}'.format(color, alpha),width=w))
             # print(f'made trace {zone} for temp logging plot')
             self.trace_list.append(trace)
         self.setLabel('left',ylabel,units=yunits,color=color)
@@ -259,6 +277,34 @@ class TempLoggingPlot(pg.PlotWidget):
             xdata = np.append(xdata,time())
             ydata = np.append(ydata,new_data[i])
             trace.setData(xdata,ydata)
+
+class FlowLoggingPlot(pg.PlotWidget):
+    def __init__(self,ylabel,yunits,arColor,h2sColor,alpha = 200):
+        super().__init__()
+        self.getPlotItem().showGrid(x=True,y=True,alpha=0.5)
+        self.addLegend()
+        self.setLabel('left',ylabel,units=yunits,color=arColor)
+        self.arTrace = self.plot(x=[time()],y=[1],pen=pg.mkPen(color='{}{:02x}'.format(arColor, alpha),width=3),name='Ar')
+        self.h2sTrace = self.plot(x=[time()],y=[0],pen=pg.mkPen(color='{}{:02x}'.format(h2sColor, alpha),width=3),name='H2S')
+        
+
+    def updateH2S(self,new_data):
+        xdata,ydata = self.h2sTrace.getData()
+        # print(old_data)
+        xdata = np.append(xdata,time())
+        ydata = np.append(ydata,new_data)
+        self.h2sTrace.setData(x=xdata,y=ydata)
+
+    def updateAr(self,new_data):
+        xdata,ydata = self.arTrace.getData()
+        # print(old_data)
+        xdata = np.append(xdata,time())
+        ydata = np.append(ydata,new_data)
+        self.arTrace.setData(x=xdata,y=ydata)
+
+
+
+
 
 class BasicLoggingPlot(pg.PlotWidget):
     def __init__(self,ylabel,yunits,color):
@@ -284,8 +330,8 @@ class LoggingPlot(qw.QWidget):
         layout = qw.QVBoxLayout()
         self.group = qw.QGroupBox(plot_title)
         self.plot = pg.PlotWidget()
-        self.trace = self.plot.plot(x=[],y=[],pen=self.pen)
-        self.trace.setSkipFiniteCheck(True)
+        for item in dataItems:
+            self.trace_list.append(pg.PlotCurveItem(pen=self.pen)) ## what if I want different pens?
         self.plot.getPlotItem().showGrid(x=True, y=True, alpha=1)
         if "qdarkstyle" in sys.modules:
             self.plot.setBackground((25, 35, 45))
@@ -297,10 +343,21 @@ class LoggingPlot(qw.QWidget):
         self.setLayout(masterLayout)
 
     def update_plot(self,new_data):
-        xdata,ydata = self.trace.getData()
-        xdata = np.append(xdata,time())
-        ydata = np.append(ydata,new_data)
-        self.trace.setData(x=xdata, y=ydata)
+        ## Let's say new_data is a tuple or a float
+        if len(new_data) == 0:
+            xdata,ydata = self.trace.getData()
+            xdata = np.append(xdata,time())
+            ydata = np.append(ydata,new_data)
+            self.trace.setData(x=xdata, y=ydata)
+        elif len(new_data) != len(self.plot.listDataItems()):
+                return
+        else:
+            for trace in self.plot.listDataItems():
+                color = trace.opts['pen'].color().name()
+                (x_data, y_data) = trace.getData()
+                xdata = np.append(xdata,time())
+                ydata = np.append(ydata,new_data)
+                trace.setData(x=xdata, y=ydata)
         # self.plot.getViewBox().autoRange()
 
 if __name__ == "__main__":
@@ -308,9 +365,11 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     logger.addHandler(logging.NullHandler())
     app = qw.QApplication(sys.argv)
-    if "qdarkstyle" in sys.modules:
+    try:
         import qdarkstyle
         app.setStyleSheet(qdarkstyle.load_stylesheet())
+    except:
+        pass
 
     window = MainControlWindow(logger = logger, testing = True)
     
