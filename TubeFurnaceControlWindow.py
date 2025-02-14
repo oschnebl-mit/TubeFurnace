@@ -1,5 +1,5 @@
 import sys, logging
-from time import time, sleep
+import time as t
 from PyQt5 import QtGui,QtCore
 import PyQt5.QtWidgets as qw 
 import pyqtgraph as pg
@@ -17,8 +17,8 @@ class MainControlWindow(qw.QMainWindow):
 
         self.resize(1280,720) # non-maximized state
 
-        if self.testing == False:
-            self.showMaximized()
+#         if self.testing == False:
+#             self.showMaximized()
 
         self.initUI()
         self.delay = int(self.delayInput.text())
@@ -149,22 +149,22 @@ class MainControlWindow(qw.QMainWindow):
             currentDelta = currentTemp - temperature
             if abs(currentDelta) < tolerance:
                 break
-            sleep(60)
+            t.sleep(60)
 
     def fillTube(self):
         ## Flow Ar until tube is at atmospheric pressure
-        print("Fill tube with Ar")
-        print(self.othertree.getFillValue('Approach Pressure (Torr)'))
-        # self.stopPressure = self.othertree.getValue('Fill Parameters','Fill Pressure (Torr)')
-        self.approachPressure = 700
-        self.initFlow = 100
-        self.finalFlow = 1000
-
-        ''' For demo mode: looks like the tube furnace purge plot, displays updating placeholder data, responds to fill pressure and stop button or pressure condition'''
+        if self.testing:
+            print("Fill tube with Ar")
+            print(self.othertree.getFillValue('Approach Pressure (Torr)'))
+        self.stopPressure = int(self.othertree.getFillValue('Fill Pressure (Torr)'))
+        self.approachPressure = int(self.othertree.getFillValue('Approach Pressure (Torr)'))
+        self.initFlow = self.othertree.getFillValue('Approach Ar Flow (sccm)')
+        self.finalFlow = self.othertree.getFillValue('Fill Ar Flow (sccm)')
+            
         self.currentProcessPlot.clear()
         if self.cp2 is not None:
             self.cp2.clear()
-        
+         
         self.currentProcessPlot.setLabel('left',"Pressure",units = 'Torr',color=self.pressureColor,**{'font-size': '12pt'})
         self.currentProcessPlot.setLabel('bottom','Time',units='s',color='#e0e0e0',**{'font-size':'12pt'})
         ### for second trace #######
@@ -185,7 +185,7 @@ class MainControlWindow(qw.QMainWindow):
         self.tube_pressure_data = [0]
         self.sccm_Ar_data=[0]
         self.time_data = [0]
-        self.t0 = time()
+        self.t0 = t.time()
 
         self.timer = QtCore.QTimer()
         if self.testing:
@@ -202,7 +202,7 @@ class MainControlWindow(qw.QMainWindow):
         ''' For demo mode: updates with self-generated data, stops on pressure condition'''
         # self.stopPressure = int(self.purgePressureInput.text())
         self.stopPressure = 750
-        tcurr = time() - self.t0
+        tcurr = t.time() - self.t0
         actual_tube_pressure = self.tube_pressure_data[-1]
         if actual_tube_pressure >= self.stopPressure:
             Ar_flow = 0
@@ -222,8 +222,9 @@ class MainControlWindow(qw.QMainWindow):
 
     def update_fill_plot(self):
         # self.stopPressure = int(self.purgePressureInput.text())
-        tcurr = time() - self.t0
-        actual_tube_pressure = self.PGauge.getPressure()
+        tcurr = t.time() - self.t0
+        actual_tube_pressure = int(self.PGauge.getPressure())
+        Ar_flow = self.MFC.get_data(self.MFC.gas_ids['Ar'])['sccm']
         if actual_tube_pressure >= self.stopPressure:
             self.MFC.set_sccm('Ar',0)
             self.logger.info(f'Reached {self.stopPressure} Torr, stopping Ar flow')
@@ -266,7 +267,7 @@ class TempLoggingPlot(pg.PlotWidget):
             else:
                 w = 3
                 alpha = 100
-            trace = self.plot(x=[time()],y=[1],pen=pg.mkPen(color='{}{:02x}'.format(color, alpha),width=w))
+            trace = self.plot(x=[t.time()],y=[1],pen=pg.mkPen(color='{}{:02x}'.format(color, alpha),width=w))
             # print(f'made trace {zone} for temp logging plot')
             self.trace_list.append(trace)
         self.setLabel('left',ylabel,units=yunits,color=color)
@@ -274,7 +275,7 @@ class TempLoggingPlot(pg.PlotWidget):
         # new data is a list of floats
         for i,trace in enumerate(self.trace_list):
             xdata,ydata = trace.getData()
-            xdata = np.append(xdata,time())
+            xdata = np.append(xdata,t.time())
             ydata = np.append(ydata,new_data[i])
             trace.setData(xdata,ydata)
 
@@ -284,21 +285,21 @@ class FlowLoggingPlot(pg.PlotWidget):
         self.getPlotItem().showGrid(x=True,y=True,alpha=0.5)
         self.addLegend()
         self.setLabel('left',ylabel,units=yunits,color=arColor)
-        self.arTrace = self.plot(x=[time()],y=[1],pen=pg.mkPen(color='{}{:02x}'.format(arColor, alpha),width=3),name='Ar')
-        self.h2sTrace = self.plot(x=[time()],y=[0],pen=pg.mkPen(color='{}{:02x}'.format(h2sColor, alpha),width=3),name='H2S')
+        self.arTrace = self.plot(x=[t.time()],y=[1],pen=pg.mkPen(color='{}{:02x}'.format(arColor, alpha),width=3),name='Ar')
+        self.h2sTrace = self.plot(x=[t.time()],y=[0],pen=pg.mkPen(color='{}{:02x}'.format(h2sColor, alpha),width=3),name='H2S')
         
 
     def updateH2S(self,new_data):
         xdata,ydata = self.h2sTrace.getData()
         # print(old_data)
-        xdata = np.append(xdata,time())
+        xdata = np.append(xdata,t.time())
         ydata = np.append(ydata,new_data)
         self.h2sTrace.setData(x=xdata,y=ydata)
 
     def updateAr(self,new_data):
         xdata,ydata = self.arTrace.getData()
         # print(old_data)
-        xdata = np.append(xdata,time())
+        xdata = np.append(xdata,t.time())
         ydata = np.append(ydata,new_data)
         self.arTrace.setData(x=xdata,y=ydata)
 
@@ -311,14 +312,14 @@ class BasicLoggingPlot(pg.PlotWidget):
         super().__init__()
         # self.plot = pg.PlotWidget()
         self.getPlotItem().showGrid(x=True, y=True, alpha=1)
-        self.trace = self.plot(x=[time()],y=[1],pen=pg.mkPen(color=color,width=2))
+        self.trace = self.plot(x=[t.time()],y=[1],pen=pg.mkPen(color=color,width=2))
         # print('made trace on Basic Logging Plot')
         self.setLabel('left',ylabel,units=yunits,color=color)
 
     def update(self,new_data):
         xdata,ydata = self.trace.getData()
         # print(old_data)
-        xdata = np.append(xdata,time())
+        xdata = np.append(xdata,t.time())
         ydata = np.append(ydata,new_data)
         self.trace.setData(x=xdata,y=ydata)
 
@@ -346,7 +347,7 @@ class LoggingPlot(qw.QWidget):
         ## Let's say new_data is a tuple or a float
         if len(new_data) == 0:
             xdata,ydata = self.trace.getData()
-            xdata = np.append(xdata,time())
+            xdata = np.append(xdata,t.time())
             ydata = np.append(ydata,new_data)
             self.trace.setData(x=xdata, y=ydata)
         elif len(new_data) != len(self.plot.listDataItems()):
@@ -355,14 +356,15 @@ class LoggingPlot(qw.QWidget):
             for trace in self.plot.listDataItems():
                 color = trace.opts['pen'].color().name()
                 (x_data, y_data) = trace.getData()
-                xdata = np.append(xdata,time())
+                xdata = np.append(xdata,t.time())
                 ydata = np.append(ydata,new_data)
                 trace.setData(x=xdata, y=ydata)
         # self.plot.getViewBox().autoRange()
 
 if __name__ == "__main__":
-
+    timestr = t.strftime('%Y%m%d-%H%M%S')
     logger = logging.getLogger(__name__)
+    logging.basicConfig(filename=f'TubeFurnaceControl_{timestr}.log',level=logging.INFO)
     logger.addHandler(logging.NullHandler())
     app = qw.QApplication(sys.argv)
     try:
@@ -371,7 +373,7 @@ if __name__ == "__main__":
     except:
         pass
 
-    window = MainControlWindow(logger = logger, testing = True)
+    window = MainControlWindow(logger = logger, testing = False)
     
     sys.exit(app.exec())
 

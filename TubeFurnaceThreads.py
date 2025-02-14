@@ -69,8 +69,8 @@ class MFCControl(QtCore.QThread):
     def set_sccm(self, gas_id_str, sccm_value):
         ## gas id str is 'H2S', 'Ar', or other plumbed gas, sccm_value is flow rate
         gas_id_letter = self.gas_ids[gas_id_str]
-        self.connection.ask(f'{gas_id_letter},S{sccm_value}')
-        self.logger.debug(f'Setting {gas_id_str} to {sccm_value} sccm')
+        response = self.connection.ask(f'{gas_id_letter}S{sccm_value}')
+        self.logger.debug(f'Setting {gas_id_str} to {sccm_value} sccm... responded: {response}')
 
     def stop_all_gas_flows(self):
         for gas_name, gas_id_letter in self.gas_ids.items():
@@ -145,7 +145,7 @@ class FurnaceControl(QtCore.QThread):
         else:
             data = []
             for zone_number in (1,2,3):
-                response = self.connection.ask(f'\x020{zone_number}010WRDD0003,01\x03')
+                response = self.connection.ask(f'\x020{zone_number}010WRDD0002,01\x03')
                 data.append(int(response.split('OK')[1][0:4],16))
             return data
 
@@ -159,7 +159,7 @@ class FurnaceControl(QtCore.QThread):
             register = 229
             i = 1
             for (setpoint,time) in args[0]:
-                print(setpoint,time)
+#                 print(setpoint,time)
                 for zone_number in (1,2,3):
                     command = f'\x020{zone_number}010WWRD0{register},01,{setpoint:04X}\x03\r'
                     response = self.connection.ask(command)
