@@ -42,11 +42,11 @@ from TubeFurnaceParams import ProcessParams, OtherParams
 class LoggingThread(QtCore.QThread):
     ''' Periodically asks for data from pressure gauge, furnace, and MFCS. Passes measured data and overpressure alarm to main window'''
     overpressure_error = QtCore.pyqtSignal(bool)
-    new_pressure_data = QtCore.pyqtSignal(object)
-    new_temp_data = QtCore.pyqtSignal(object)
+    new_pressure_data = QtCore.pyqtSignal(float)
+    new_temp_data = QtCore.pyqtSignal(list)
     # new_Ar_data = QtCore.pyqtSignal(object)
     # new_H2S_data = QtCore.pyqtSignal(object)
-    new_flow_data = QtCore.pyqtSignal(object)
+    new_flow_data = QtCore.pyqtSignal(list)
 
     def __init__(self,logger, pgauge, furnace, mfc, overpressure = 800, delay = 30, testing = False):
         super().__init__()
@@ -139,7 +139,7 @@ class FillProcessThread(QtCore.QThread):
     ''' Thread that brings tube to atmospheric pressure. Does it's own measuring because
     the desired interval is so much shorter than a typical logging interval'''
     new_Ar_data = QtCore.pyqtSignal(object)
-    new_pressure_data = QtCore.pyqtSignal(float)
+    new_pressure_data = QtCore.pyqtSignal(list)
 
     def __init__(self, logger, testing, pgauge, mfc, furnace, tree, delay=1, abortPoints=3):
         super().__init__()
@@ -203,7 +203,7 @@ class FillProcessThread(QtCore.QThread):
                     dummy_flow = int(self.finalFlow)
 
             self.new_Ar_data.emit([Ar_sccm])
-            self.new_pressure_data.emit(actual_tube_pressure)
+            self.new_pressure_data.emit([actual_tube_pressure])
             sleep(self.delay)
 
 
@@ -257,9 +257,9 @@ class MainControlWindow(qw.QMainWindow):
         self.delay = self.othertree.p.param('Logging Interval (s)').value()
         self.overpressure_limit = self.othertree.p.param('Overpressure Limit (Torr)').value()
 
-        self.MFC = MFCControl(logger=self.logger,delay=self.delay,testing=self.testing)
-        self.PGauge = PressureGauge(overpressure_limit=800,logger=self.logger,delay=self.delay,testing=self.testing)
-        self.Furnace = FurnaceControl(logger=self.logger,delay=self.delay,testing=self.testing)
+        self.MFC = MFCControl(logger=self.logger,testing=self.testing)
+        self.PGauge = PressureGauge(logger=self.logger,testing=self.testing)
+        self.Furnace = FurnaceControl(logger=self.logger,testing=self.testing)
         self.LoggingThread = LoggingThread(logger = self.logger, pgauge = self.PGauge, furnace = self.Furnace, mfc = self.MFC, overpressure = self.overpressure_limit)
         self.ProcessThread = ProcessThread(testing = self.testing, logger=self.logger, pgauge = self.PGauge, furnace = self.Furnace, mfc = self.MFC,ptree = self.tree)
         self.FillThread = FillProcessThread(testing = self.testing, logger=self.logger, pgauge = self.PGauge, furnace = self.Furnace, mfc = self.MFC,tree = self.othertree)
@@ -283,6 +283,7 @@ class MainControlWindow(qw.QMainWindow):
             pass
         # self.currentProcessPlot.clear()
         # self.currentProcessPlot.p2.clear()
+        # self.currentProcessPlot.__init__('Pressure','Torr',self.pressureColor,'Flow','sccm',self.arColor,['Ar'])
 
         self.FillThread.new_pressure_data.connect(self.currentProcessPlot.updateLeftAxis)
         self.FillThread.new_Ar_data.connect(self.currentProcessPlot.updateRightAxis)
@@ -295,15 +296,19 @@ class MainControlWindow(qw.QMainWindow):
             self.Fillthread.new_Ar_data.disconnect(self.currentProcessPlot.updateRightAxis)
         except:
             pass
-        # self.currentProcessPlot.clear()
-        # self.currentProcessPlot.p2.clear()
+
         ## put in new data but don't clear
-        self.currentProcessPlot.leftTrace.setData(x=[time()],y=[25])
-        for trace in self.currentProcessPlot.rightTraceList:
-            trace.setData(x=[time()],y=[1])
+        # self.currentProcessPlot.leftTrace.setData(x=[time()],y=[25])
+        # h2strace = pg.PlotCurveItem(pen=pg.mkPen(color=self.h2sColor,width=2),name='H2S')
+        # self.currentProcessPlot.p2.addItem(h2strace)
+        # self.currentProcessPlot.rightTraceList.append(h2strace)
+        # self.currentProcessPlot.rightLegend.addItem(h2strace,'H2S')
+        # for trace in self.currentProcessPlot.rightTraceList:
+        #     trace.setData(x=[time()],y=[1])
         
-        self.currentProcessPlot.setLabel('left','Temperature',units='C')
-        self.currentProcessPlot.setLabel('right','Flow',units='sccm')
+        # self.currentProcessPlot.setLabel('left','Temperature',units='C')
+        # self.currentProcessPlot.setLabel('right','Flow',units='sccm')
+        # self.currentProcessPlot.__init__('Temperature','C',self.tempColor,'Flow','sccm',self.arColor,['Ar','H2S'])
 
         self.LoggingThread.new_temp_data.connect(self.currentProcessPlot.updateLeftAxis)
         self.LoggingThread.new_flow_data.connect(self.currentProcessPlot.updateRightAxis)
@@ -464,41 +469,44 @@ class CurrentProcessPlot(pg.PlotWidget):
         self.getViewBox().sigResized.connect(self.updateViews)
         self.rightTraceList = []
 
-        rightLegend = pg.LegendItem()
-        self.p2.addItem(rightLegend)
+        self.rightLegend = pg.LegendItem()
+        self.p2.addItem(self.rightLegend)
 
         for i,name in enumerate(rightTraceNames):
             trace = pg.PlotCurveItem(pen=pg.mkPen(color=rightColor,width=2*(i+1)),name=name)
             self.p2.addItem(trace)
             self.rightTraceList.append(trace)
-            rightLegend.addItem(trace,name)
+            self.rightLegend.addItem(trace,name)
 
 
     def updateViews(self):
             self.p2.setGeometry(self.getViewBox().sceneBoundingRect())
             self.p2.linkedViewChanged(self.getViewBox(), self.p2.XAxis)
 
-    def updateLeftAxis(self, *new_left_data):
-        # print(f'Add to left axis: {new_left_data}')
+    def updateLeftAxis(self, new_left_data):
+        print(f'Add to left axis: {new_left_data}')
         if len(new_left_data)==3:
+            print(f'Add to left axis: {new_left_data[1]}')
             new_left_data = new_left_data[1]
+        else:
+            new_left_data = new_left_data[0]
         xdata,ydata = self.leftTrace.getData()
         xdata = np.append(xdata,time())
+        # ydata = np.append(ydata,100)
         ydata = np.append(ydata,new_left_data)
         self.leftTrace.setData(x=xdata,y=ydata)
-        self.getViewBox().autoRange()
+        # self.getViewBox().autoRange()
 
     def updateRightAxis(self,new_right_data):
         # new_right_data needs to be a list
         print(f'Add to right axis: {new_right_data}')
         for i,trace in enumerate(self.rightTraceList):
-            print(i) ## debugging
-            
             xdata,ydata = trace.getData()
+            # print(xdata,ydata) ## debugging
             xdata = np.append(xdata,time())
             ydata = np.append(ydata,new_right_data[i])
             trace.setData(x=xdata,y=ydata)
-        self.p2.autoRange()
+        # self.p2.autoRange()
 
 
 class BasicLoggingPlot(pg.PlotWidget):

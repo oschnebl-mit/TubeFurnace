@@ -5,7 +5,8 @@ import numpy as np
 from pyqtgraph.Qt import QtCore
 from TubeFurnaceController import GenericSerialDevice
 
-class MFCControl(QtCore.QThread):
+class MFCControl():
+    ''' Object that holds serial connection to MFC controller and communicates with it'''
 
     gas_ids = {
     'N2': 'A',
@@ -15,28 +16,14 @@ class MFCControl(QtCore.QThread):
     'H2S': 'E',
     'H2Se': 'F'
     }
-    new_Ar_data = QtCore.pyqtSignal(object)
-    new_H2S_data = QtCore.pyqtSignal(object)
 
-    def __init__(self, logger, delay = 30, testing = False):
-        super().__init__()
+
+    def __init__(self, logger, testing = False):
+
         self.connection = GenericSerialDevice(com_port=3, baudrate=19200, testing=testing, name='MFC Controller')
-        self.running = False
         self.logger = logger
         self.testing = testing
-        self.delay = delay
 
-    def run(self):
-        ## normal running behavior reads sccm for active gases every [delay] seconds and sends to main
-        self.running = True
-        while self.running:
-            Ar_sccm = self.get_data(self.gas_ids['Ar'])['sccm']
-            H2S_sccm = self.get_data(self.gas_ids['H2S'])['sccm']
-            self.new_Ar_data.emit(Ar_sccm)
-            self.new_H2S_data.emit(H2S_sccm)
-            QtCore.QThread.msleep(self.delay*1000)
-
-            
 
     def get_data(self,gas_id_letter) -> dict:
         if self.testing:
@@ -83,32 +70,19 @@ class MFCControl(QtCore.QThread):
         self.logger.debug(f'Setting all gas flows to 0')
 
 
-class PressureGauge(QtCore.QThread):
-    new_pressure_data = QtCore.pyqtSignal(float)
-    overpressure_error = QtCore.pyqtSignal(bool)
-    ## Add an overpressure signal
-    def __init__(self,overpressure_limit, logger, delay = 30, testing = False):
-        super().__init__()
+class PressureGauge():
+    ''' Object that holds serial connection to pressure gauge and returns measured value'''
+
+    def __init__(self, logger,testing = False):
+
         self.logger = logger
-        self.overpressure_limit = overpressure_limit
-        self.delay = delay
         self.testing = testing
         self.running = False
 
         self.connection = GenericSerialDevice(com_port = 6, testing = testing, name = 'Pressure Gauge')
-
-    def run(self):
-        self.running = True
-        while self.running:
-            measured_pressure = self.getPressure()
-            self.new_pressure_data.emit(measured_pressure)
-            if measured_pressure > self.overpressure_limit:
-                self.overpressure_error.emit(True)
-            QtCore.QThread.msleep(self.delay*1000)
-
     def getPressure(self):
         if self.testing:
-            print(f' testing: get Pressure\n')
+            self.logger.info(f' testing: get Pressure\n')
             return 100.0
         else:
             try:
@@ -119,34 +93,20 @@ class PressureGauge(QtCore.QThread):
                 self.exception(ex)
                 return -1
             
-class FurnaceControl(QtCore.QThread):
-    new_temp_data = QtCore.pyqtSignal(object) ## type is a list [z1, z2, z3]
-    # new_zone2_data = QtCore.pyqtSignal(object)
-    # new_zone3_data = QtCore.pyqtSignal(object)
+class FurnaceControl():
+    '''Object that holds serial connection to furnace and sends it messages '''
 
-    def __init__(self,logger,delay = 30, testing = False):
-        super().__init__()
+    def __init__(self,logger, testing = False):
+
         self.logger = logger
-        self.delay = delay
         self.testing = testing
-        self.running = False
-
         self.connection = GenericSerialDevice(com_port=4, parity=serial.PARITY_EVEN, testing=testing,
                                                           name='Temperature Controller')
-    
-    def run(self):
-        ## maybe a bit confusing, but run only tracks temp, doesn't start furnace
-        self.running = True
-        while self.running:
-            new_data = self.getAllTemperatures()
-            self.new_temp_data.emit(new_data)
-            QtCore.QThread.msleep(self.delay*1000)
-
 
     def getAllTemperatures(self):
         if self.testing:
-            print('testing: get All temps \n')
-            return [20,25,23]
+            self.logger.info('testing: get All temps \n')
+            return list([20,25,23])
         else:
             data = []
             for zone_number in (1,2,3):
@@ -164,7 +124,7 @@ class FurnaceControl(QtCore.QThread):
             register = 229
             i = 1
             for (setpoint,time) in args[0]:
-                print(setpoint,time)
+                # print(setpoint,time)
                 for zone_number in (1,2,3):
                     command = f'\x020{zone_number}010WWRD0{register},01,{setpoint:04X}\x03\r'
                     response = self.connection.ask(command)
