@@ -40,10 +40,15 @@ class MFCControl(QtCore.QThread):
 
     def get_data(self,gas_id_letter) -> dict:
         if self.testing:
-            return {
-                key: -1
-                for key in ['ID', 'PSIA', 'flow_temp', 'vol_flow_ccm', 'sccm', 'sccm_setpoint', 'gas_name']
-            }
+            if gas_id_letter == self.gas_ids['Ar']:
+                return{
+                    key: -2 for key in ['ID', 'PSIA', 'flow_temp', 'vol_flow_ccm', 'sccm', 'sccm_setpoint', 'gas_name']
+                }
+            else:
+                return {
+                    key: -1
+                    for key in ['ID', 'PSIA', 'flow_temp', 'vol_flow_ccm', 'sccm', 'sccm_setpoint', 'gas_name']
+                }
 
         else:
             response = self.connection.ask(f'{gas_id_letter}')
