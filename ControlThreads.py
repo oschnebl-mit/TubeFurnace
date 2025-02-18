@@ -156,12 +156,13 @@ class FillProcessThread(QtCore.QThread):
     def abort(self):
         self.MFC.stop_all_gas_flows()
         self.running=False
-        for n in range(self.abortPoints): ## take a few data points so user can see flow has stopped
-            Ar_sccm = self.MFC.get_data(self.MFC.gas_ids['Ar'])['sccm']
+        ## taking points causing issues for abort
+#         for n in range(self.abortPoints): ## take a few data points so user can see flow has stopped
+#             Ar_sccm = self.MFC.get_data(self.MFC.gas_ids['Ar'])['sccm']
            
-            self.new_Ar_data.emit([Ar_sccm,0])
-            self.new_pressure_data.emit(self.PGauge.getPressure())
-            sleep(self.delay)
+#             self.new_Ar_data.emit([Ar_sccm,0])
+#             self.new_pressure_data.emit(self.PGauge.getPressure())
+#             sleep(self.delay)
 
 
     def run(self):
@@ -182,7 +183,6 @@ class FillProcessThread(QtCore.QThread):
                 Ar_sccm = dummy_flow
             else:
                 actual_tube_pressure = self.PGauge.getPressure()
-                print(actual_tube_pressure) ## for debugging
                 Ar_sccm = self.MFC.get_data(self.MFC.gas_ids['Ar'])['sccm']
             tcurr = time()-self.t0
             if actual_tube_pressure >= self.stopPressure:
@@ -287,8 +287,8 @@ class MainControlWindow(qw.QMainWindow):
         # self.currentProcessPlot.p2.clear()
         # self.currentProcessPlot.__init__('Pressure','Torr',self.pressureColor,'Flow','sccm',self.arColor,['Ar'])
 
-#         self.FillThread.new_pressure_data.connect(self.currentProcessPlot.updateLeftAxis)
-#         self.FillThread.new_Ar_data.connect(self.currentProcessPlot.updateRightAxis)
+        self.FillThread.new_pressure_data.connect(self.currentProcessPlot.updateLeftAxis)
+        self.FillThread.new_Ar_data.connect(self.currentProcessPlot.updateRightAxis)
         # self.FillThread.finished.connect(self.finishFillMessage)
         self.FillThread.start()
 
