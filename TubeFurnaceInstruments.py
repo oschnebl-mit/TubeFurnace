@@ -110,7 +110,7 @@ class FurnaceControl():
         else:
             data = []
             for zone_number in (1,2,3):
-                response = self.connection.ask(f'\x020{zone_number}010WRDD0003,01\x03')
+                response = self.connection.ask(f'\x020{zone_number}010WRDD0002,01\x03')
                 data.append(int(response.split('OK')[1][0:4],16))
             return data
 
