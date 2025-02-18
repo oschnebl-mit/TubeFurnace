@@ -61,7 +61,7 @@ class MFCControl():
     def set_sccm(self, gas_id_str, sccm_value):
         ## gas id str is 'H2S', 'Ar', or other plumbed gas, sccm_value is flow rate
         gas_id_letter = self.gas_ids[gas_id_str]
-        self.connection.ask(f'{gas_id_letter},S{sccm_value}')
+        self.connection.ask(f'{gas_id_letter}S{sccm_value}')
         self.logger.debug(f'Setting {gas_id_str} to {sccm_value} sccm')
 
     def stop_all_gas_flows(self):

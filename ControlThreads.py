@@ -158,7 +158,8 @@ class FillProcessThread(QtCore.QThread):
         self.running=False
         for n in range(self.abortPoints): ## take a few data points so user can see flow has stopped
             Ar_sccm = self.MFC.get_data(self.MFC.gas_ids['Ar'])['sccm']
-            self.new_Ar_data.emit([Ar_sccm])
+           
+            self.new_Ar_data.emit([Ar_sccm,0])
             self.new_pressure_data.emit(self.PGauge.getPressure())
             sleep(self.delay)
 
@@ -170,7 +171,7 @@ class FillProcessThread(QtCore.QThread):
         self.initFlow = self.tree.getFillValue('Approach Ar Flow (sccm)')
         self.finalFlow = self.tree.getFillValue('Fill Ar Flow (sccm)')
         self.t0 = time()
-
+#         print(f'Filling tube to {self.stopPressure}Torr')
         if self.testing: ## putting a testing mode in this function because the instruments return constant values in testing mode
             dummy_pressure = 1
             dummy_flow = 0.1
@@ -181,6 +182,7 @@ class FillProcessThread(QtCore.QThread):
                 Ar_sccm = dummy_flow
             else:
                 actual_tube_pressure = self.PGauge.getPressure()
+                print(actual_tube_pressure) ## for debugging
                 Ar_sccm = self.MFC.get_data(self.MFC.gas_ids['Ar'])['sccm']
             tcurr = time()-self.t0
             if actual_tube_pressure >= self.stopPressure:
@@ -285,15 +287,15 @@ class MainControlWindow(qw.QMainWindow):
         # self.currentProcessPlot.p2.clear()
         # self.currentProcessPlot.__init__('Pressure','Torr',self.pressureColor,'Flow','sccm',self.arColor,['Ar'])
 
-        self.FillThread.new_pressure_data.connect(self.currentProcessPlot.updateLeftAxis)
-        self.FillThread.new_Ar_data.connect(self.currentProcessPlot.updateRightAxis)
+#         self.FillThread.new_pressure_data.connect(self.currentProcessPlot.updateLeftAxis)
+#         self.FillThread.new_Ar_data.connect(self.currentProcessPlot.updateRightAxis)
         # self.FillThread.finished.connect(self.finishFillMessage)
         self.FillThread.start()
 
     def runAnnealProcess(self):
         try:
             self.FillThread.new_pressure_data.disconnect(self.currentProcessPlot.updateLeftAxis)
-            self.Fillthread.new_Ar_data.disconnect(self.currentProcessPlot.updateRightAxis)
+            self.FillThread.new_Ar_data.disconnect(self.currentProcessPlot.updateRightAxis)
         except:
             pass
 
@@ -529,9 +531,26 @@ class BasicLoggingPlot(pg.PlotWidget):
 
 
 if __name__ == "__main__":
+    
+    from pathlib import Path
+    logger = logging.getLogger('TubeFurnaceController')
+    logger.setLevel(logging.DEBUG)
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.INFO)
+    handler.setFormatter(
+        logging.Formatter('%(asctime)s : %(levelname)s : %(message)s')
+    )
+    logger.addHandler(handler)
 
-    logger = logging.getLogger(__name__)
-    logger.addHandler(logging.NullHandler())
+    file_handler = logging.FileHandler(Path.cwd().joinpath(f'TubeFurnaceGUI_python_log.log'))
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(
+        logging.Formatter('%(asctime)s, %(threadName)s, %(levelname)s, %(message)s')
+    )
+    logger.addHandler(file_handler)
+
+#     logger = logging.getLogger(__name__)
+#     logger.addHandler(logging.NullHandler())
     app = qw.QApplication(sys.argv)
     try:
         import qdarkstyle
@@ -539,7 +558,7 @@ if __name__ == "__main__":
     except:
         pass
 
-    window = MainControlWindow(logger = logger, testing = True)
+    window = MainControlWindow(logger = logger, testing = False)
     
     sys.exit(app.exec())
     
