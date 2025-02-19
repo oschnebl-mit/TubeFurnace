@@ -154,7 +154,7 @@ class FillProcessThread(QtCore.QThread):
         self.abortPoints = abortPoints
 
     def abort(self):
-        self.MFC.stop_all_gas_flows()
+        self.MFC.set_sccm('Ar',0)
         self.running=False
         ## taking points causing issues for abort
 #         for n in range(self.abortPoints): ## take a few data points so user can see flow has stopped
