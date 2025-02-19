@@ -154,7 +154,9 @@ class FillProcessThread(QtCore.QThread):
         self.abortPoints = abortPoints
 
     def abort(self):
-        self.MFC.set_sccm('Ar',0)
+#         self.MFC.set_sccm('Ar',0)
+        print('Aborting fill process')
+        self.MFC.stop_all_gas_flows()
         self.running=False
         ## taking points causing issues for abort
 #         for n in range(self.abortPoints): ## take a few data points so user can see flow has stopped
@@ -486,9 +488,9 @@ class CurrentProcessPlot(pg.PlotWidget):
             self.p2.linkedViewChanged(self.getViewBox(), self.p2.XAxis)
 
     def updateLeftAxis(self, new_left_data):
-        print(f'Add to left axis: {new_left_data}')
+#         print(f'Add to left axis: {new_left_data}')
         if len(new_left_data)==3:
-            print(f'Add to left axis: {new_left_data[1]}')
+#             print(f'Add to left axis: {new_left_data[1]}')
             new_left_data = new_left_data[1]
         else:
             new_left_data = new_left_data[0]
@@ -501,7 +503,7 @@ class CurrentProcessPlot(pg.PlotWidget):
 
     def updateRightAxis(self,new_right_data):
         # new_right_data needs to be a list
-        print(f'Add to right axis: {new_right_data}')
+#         print(f'Add to right axis: {new_right_data}')
         for i,trace in enumerate(self.rightTraceList):
             xdata,ydata = trace.getData()
             # print(xdata,ydata) ## debugging
