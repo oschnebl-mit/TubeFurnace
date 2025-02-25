@@ -154,13 +154,17 @@ class FillProcessThread(QtCore.QThread):
         self.abortPoints = abortPoints
 
     def abort(self):
+#         self.MFC.set_sccm('Ar',0)
+        print('Aborting fill process')
         self.MFC.stop_all_gas_flows()
         self.running=False
-        for n in range(self.abortPoints): ## take a few data points so user can see flow has stopped
-            Ar_sccm = self.MFC.get_data(self.MFC.gas_ids['Ar'])['sccm']
-            self.new_Ar_data.emit([Ar_sccm])
-            self.new_pressure_data.emit(self.PGauge.getPressure())
-            sleep(self.delay)
+        ## taking points causing issues for abort
+#         for n in range(self.abortPoints): ## take a few data points so user can see flow has stopped
+#             Ar_sccm = self.MFC.get_data(self.MFC.gas_ids['Ar'])['sccm']
+           
+#             self.new_Ar_data.emit([Ar_sccm,0])
+#             self.new_pressure_data.emit(self.PGauge.getPressure())
+#             sleep(self.delay)
 
 
     def run(self):
@@ -170,7 +174,7 @@ class FillProcessThread(QtCore.QThread):
         self.initFlow = self.tree.getFillValue('Approach Ar Flow (sccm)')
         self.finalFlow = self.tree.getFillValue('Fill Ar Flow (sccm)')
         self.t0 = time()
-
+#         print(f'Filling tube to {self.stopPressure}Torr')
         if self.testing: ## putting a testing mode in this function because the instruments return constant values in testing mode
             dummy_pressure = 1
             dummy_flow = 0.1
@@ -293,7 +297,7 @@ class MainControlWindow(qw.QMainWindow):
     def runAnnealProcess(self):
         try:
             self.FillThread.new_pressure_data.disconnect(self.currentProcessPlot.updateLeftAxis)
-            self.Fillthread.new_Ar_data.disconnect(self.currentProcessPlot.updateRightAxis)
+            self.FillThread.new_Ar_data.disconnect(self.currentProcessPlot.updateRightAxis)
         except:
             pass
 
@@ -484,9 +488,9 @@ class CurrentProcessPlot(pg.PlotWidget):
             self.p2.linkedViewChanged(self.getViewBox(), self.p2.XAxis)
 
     def updateLeftAxis(self, new_left_data):
-        print(f'Add to left axis: {new_left_data}')
+#         print(f'Add to left axis: {new_left_data}')
         if len(new_left_data)==3:
-            print(f'Add to left axis: {new_left_data[1]}')
+#             print(f'Add to left axis: {new_left_data[1]}')
             new_left_data = new_left_data[1]
         else:
             new_left_data = new_left_data[0]
@@ -499,7 +503,7 @@ class CurrentProcessPlot(pg.PlotWidget):
 
     def updateRightAxis(self,new_right_data):
         # new_right_data needs to be a list
-        print(f'Add to right axis: {new_right_data}')
+#         print(f'Add to right axis: {new_right_data}')
         for i,trace in enumerate(self.rightTraceList):
             xdata,ydata = trace.getData()
             # print(xdata,ydata) ## debugging
@@ -529,9 +533,26 @@ class BasicLoggingPlot(pg.PlotWidget):
 
 
 if __name__ == "__main__":
+    
+    from pathlib import Path
+    logger = logging.getLogger('TubeFurnaceController')
+    logger.setLevel(logging.DEBUG)
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.INFO)
+    handler.setFormatter(
+        logging.Formatter('%(asctime)s : %(levelname)s : %(message)s')
+    )
+    logger.addHandler(handler)
 
-    logger = logging.getLogger(__name__)
-    logger.addHandler(logging.NullHandler())
+    file_handler = logging.FileHandler(Path.cwd().joinpath(f'TubeFurnaceGUI_python_log.log'))
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(
+        logging.Formatter('%(asctime)s, %(threadName)s, %(levelname)s, %(message)s')
+    )
+    logger.addHandler(file_handler)
+
+#     logger = logging.getLogger(__name__)
+#     logger.addHandler(logging.NullHandler())
     app = qw.QApplication(sys.argv)
     try:
         import qdarkstyle

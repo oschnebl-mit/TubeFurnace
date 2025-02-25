@@ -61,7 +61,7 @@ class MFCControl():
     def set_sccm(self, gas_id_str, sccm_value):
         ## gas id str is 'H2S', 'Ar', or other plumbed gas, sccm_value is flow rate
         gas_id_letter = self.gas_ids[gas_id_str]
-        self.connection.ask(f'{gas_id_letter},S{sccm_value}')
+        self.connection.ask(f'{gas_id_letter}S{sccm_value}')
         self.logger.debug(f'Setting {gas_id_str} to {sccm_value} sccm')
 
     def stop_all_gas_flows(self):
@@ -110,7 +110,7 @@ class FurnaceControl():
         else:
             data = []
             for zone_number in (1,2,3):
-                response = self.connection.ask(f'\x020{zone_number}010WRDD0003,01\x03')
+                response = self.connection.ask(f'\x020{zone_number}010WRDD0002,01\x03')
                 data.append(int(response.split('OK')[1][0:4],16))
             return data
 
