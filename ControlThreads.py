@@ -77,6 +77,7 @@ class LoggingThread(QtCore.QThread):
             QtCore.QThread.msleep(self.delay*1000)
 
 class ProcessThread(QtCore.QThread):
+    message = QtCore.pyqtSignal(object)
     ''' Thread that controls anneal process. Mostly sets up initial work, then lets logger populate data'''
     def __init__(self,logger, testing, pgauge, mfc, furnace, ptree, delay = 30):
         super().__init__()
@@ -92,32 +93,43 @@ class ProcessThread(QtCore.QThread):
 
     def run(self):
         self.running = True
-        while self.running:
-            ## for programFurnace need to construct a list of tuples: (SP, TM)
-            furnace_params = []
-            for si in range(1,len(self.tree.p.children())):
-                # if self.tree.getValue(si,'Time') == 0:
-                #     break
-                furnace_params.append((self.tree.getValue(si,'Temperature'),self.tree.getValue(si,'Time')))
-            self.Furnace.programFurnace(furnace_params)
-
-            ## start the furnace running the program defined above
-            self.Furnace.startFurnace() 
-            for si in range(1,len(self.tree.children())): ## TypeError: object of type 'builtin_function_or_method' has no len()
-                ## Add condition to finish if segment is all zeros
-                if self.tree.getValue(si,'Wait for') == 'Time':
-                    self.MFC.set_sccm('Ar',int(self.tree.getValue(si,'Ar Flow')))
-                    self.MFC.set_sccm('H2S',int(self.tree.getValue(si,'H2S Flow')))
-                    sleep(int(self.tree.getValue(si,'Time')*60)) ## in minutes
-                elif self.tree.getValue(si,'Wait for') == 'Temp':
-                    self.MFC.set_sccm('Ar',int(self.tree.getValue(si,'Ar Flow')))
-                    self.MFC.set_sccm('H2S',int(self.tree.getValue(si,'H2S Flow')))
-                    self.waitForTemp(int(self.tree.getValue(si,'Temperature')))
-            ## some way to shut things down when done
-            # self.processFinished.emit()
+        self.message.emit('Programming furnace')
+        ## for programFurnace need to construct a list of tuples: (SP, TM)
+        furnace_params = []
+        for si in range(1,len(self.tree.p.children())):
+            # if self.tree.getValue(si,'Time') == 0:
+            #     break
+            furnace_params.append((self.tree.getValue(si,'Temperature'),self.tree.getValue(si,'Time')))
+        self.Furnace.programFurnace(furnace_params)
+        self.message.emit('Starting furnace')
+        ## start the furnace running the program defined above
+        self.Furnace.startFurnace() 
+        for si in range(1,len(self.tree.children())): ## TypeError: object of type 'builtin_function_or_method' has no len()
+            if not self.running:
+                break ## figured out this is the best way to abort a thread
+            ## Add condition to finish if segment is all zeros
+            Ar_flow = int(self.tree.getValue(si,'Ar Flow'))
+            H2S_flow = int(self.tree.getValue(si,'H2S Flow'))
+            time = int(self.tree.getValue(si,'Time'))
+            temperature = int(self.tree.getValue(si,'Temperature'))
+            self.MFC.set_sccm('Ar',Ar_flow)
+            self.MFC.set_sccm('H2S',H2S_flow)
+            if self.tree.getValue(si,'Wait for') == 'Time':
+                message = f'Setting Ar flow to {Ar_flow} and H2S flow to {H2S_flow} sccm. Waiting for {time} min'
+                self.logger.info(message)
+                self.message.emit(message)
+                sleep(time*60) ## in minutes
+            elif self.tree.getValue(si,'Wait for') == 'Temp':
+                message = f'Setting Ar flow to {Ar_flow} and H2S flow to {H2S_flow} sccm. Waiting for {temperature} C.'
+                self.logger.info(message)
+                self.message.emit(message)
+                self.waitForTemp(temperature)
+        ## some way to shut things down when done
+        # self.processFinished.emit()
 
     def waitForTemp(self, temperature, tolerance = 5):
-        while True:
+        # while True:
+        while self.running:
             currentTemp = self.Furnace.getAllTemperatures()[1] ## zone 2
             currentDelta = currentTemp - temperature
             if abs(currentDelta) < tolerance:
@@ -130,6 +142,7 @@ class ProcessThread(QtCore.QThread):
         Should this be in process thread?? '''
         self.Furnace.stopFurance() 
         self.MFC.stop_all_gas_flows()
+        self.message.emit('Process aborted')
         self.running = False
         # if self.timer is not None:
         #     self.logger.info('Stopping timer')
@@ -139,7 +152,8 @@ class FillProcessThread(QtCore.QThread):
     ''' Thread that brings tube to atmospheric pressure. Does it's own measuring because
     the desired interval is so much shorter than a typical logging interval'''
     new_Ar_data = QtCore.pyqtSignal(object)
-    new_pressure_data = QtCore.pyqtSignal(list)
+    new_pressure_data = QtCore.pyqtSignal(object)
+    message = QtCore.pyqtSignal(object)
 
     def __init__(self, logger, testing, pgauge, mfc, furnace, tree, delay=1, abortPoints=3):
         super().__init__()
@@ -154,17 +168,14 @@ class FillProcessThread(QtCore.QThread):
         self.abortPoints = abortPoints
 
     def abort(self):
-#         self.MFC.set_sccm('Ar',0)
-        print('Aborting fill process')
         self.MFC.stop_all_gas_flows()
+        self.message.emit('Process aborted')
         self.running=False
-        ## taking points causing issues for abort
-#         for n in range(self.abortPoints): ## take a few data points so user can see flow has stopped
-#             Ar_sccm = self.MFC.get_data(self.MFC.gas_ids['Ar'])['sccm']
-           
-#             self.new_Ar_data.emit([Ar_sccm,0])
-#             self.new_pressure_data.emit(self.PGauge.getPressure())
-#             sleep(self.delay)
+        for n in range(self.abortPoints): ## take a few data points so user can see flow has stopped
+            Ar_sccm = self.MFC.get_data(self.MFC.gas_ids['Ar'])['sccm']
+            self.new_Ar_data.emit([Ar_sccm])
+            self.new_pressure_data.emit([self.PGauge.getPressure()])
+            sleep(self.delay)
 
 
     def run(self):
@@ -174,7 +185,7 @@ class FillProcessThread(QtCore.QThread):
         self.initFlow = self.tree.getFillValue('Approach Ar Flow (sccm)')
         self.finalFlow = self.tree.getFillValue('Fill Ar Flow (sccm)')
         self.t0 = time()
-#         print(f'Filling tube to {self.stopPressure}Torr')
+
         if self.testing: ## putting a testing mode in this function because the instruments return constant values in testing mode
             dummy_pressure = 1
             dummy_flow = 0.1
@@ -189,7 +200,8 @@ class FillProcessThread(QtCore.QThread):
             tcurr = time()-self.t0
             if actual_tube_pressure >= self.stopPressure:
                 self.MFC.set_sccm('Ar',0)
-                self.logger.info(f'Reached {self.stopPressure} Torr, stopping Ar flow')
+                message = f'Reached {self.stopPressure} Torr, stopping Ar flow'
+                self.finished.emit()
                 self.running = False
             elif actual_tube_pressure >= self.approachPressure:
                 self.MFC.set_sccm('Ar',self.initFlow)
@@ -197,15 +209,16 @@ class FillProcessThread(QtCore.QThread):
                     dummy_flow = int(self.initFlow)
             elif tcurr <= 5:
                 self.MFC.set_sccm('Ar',self.initFlow)
-                self.logger.info(f'Setting Ar to initial flow: {self.initFlow} sccm')
+                message = f'Setting Ar to initial flow: {self.initFlow} sccm'
                 if self.testing:
                     dummy_flow = int(self.initFlow)
             elif tcurr > 5:
                 self.MFC.set_sccm('Ar',self.finalFlow)
-                self.logger.info(f'Setting Ar to {self.finalFlow} sccm')
+                message = f'Setting Ar to {self.finalFlow} sccm'
                 if self.testing:
                     dummy_flow = int(self.finalFlow)
-
+            self.logger.info(message)
+            self.message.emit(message)
             self.new_Ar_data.emit([Ar_sccm])
             self.new_pressure_data.emit([actual_tube_pressure])
             sleep(self.delay)
@@ -433,8 +446,8 @@ class FlowLoggingPlot(pg.PlotWidget):
         # self.h2sTrace = self.plot(x=[time()],y=[0],pen=pg.mkPen(color='{}{:02x}'.format(h2sColor, alpha),width=3),name='H2S')
     
     def update(self,new_data):
-        if len(new_data) != self.traceList:
-            logger.error(f'Gas data does not match number of traces')
+        if len(new_data) != len(self.traceList):
+            print(f'Gas data {new_data} does not match number of traces: {len(self.tracelist)}')
         for i, trace in enumerate(self.traceList):
             xdata,ydata = trace.getData()
             xdata = np.append(xdata,time())
@@ -456,13 +469,15 @@ class FlowLoggingPlot(pg.PlotWidget):
         self.arTrace.setData(x=xdata,y=ydata)
 
 class CurrentProcessPlot(pg.PlotWidget):
+    ## initialize plot with left and right axes but no traces yet
+    ## plot has functions to add data to left side and right side
     def __init__(self,leftLabel,leftUnits,leftColor,rightLabel,rightUnits,rightColor,rightTraceNames):
         super().__init__()
         self.setAxisItems({'bottom':pg.DateAxisItem()})
         self.getPlotItem().showGrid(x=True, y=True, alpha = 0.5)
-        self.leftTrace = self.plot(x=[time()],y=[0],pen = pg.mkPen(color=leftColor,width=2))
+        # self.leftTrace = pg.PlotCurveItem(pen = pg.mkPen(color=leftColor,width=2))
         self.setLabel('left',leftLabel,units=leftUnits,color=leftColor)
-
+        # self.addItem(self.leftTrace)
         self.p2 = pg.ViewBox()
         self.showAxis('right')
         self.scene().addItem(self.p2)
@@ -476,21 +491,15 @@ class CurrentProcessPlot(pg.PlotWidget):
         self.rightLegend = pg.LegendItem()
         self.p2.addItem(self.rightLegend)
 
-        for i,name in enumerate(rightTraceNames):
-            trace = pg.PlotCurveItem(pen=pg.mkPen(color=rightColor,width=2*(i+1)),name=name)
-            self.p2.addItem(trace)
-            self.rightTraceList.append(trace)
-            self.rightLegend.addItem(trace,name)
-
 
     def updateViews(self):
             self.p2.setGeometry(self.getViewBox().sceneBoundingRect())
             self.p2.linkedViewChanged(self.getViewBox(), self.p2.XAxis)
 
     def updateLeftAxis(self, new_left_data):
-#         print(f'Add to left axis: {new_left_data}')
+        print(f'Add to left axis: {new_left_data}')
         if len(new_left_data)==3:
-#             print(f'Add to left axis: {new_left_data[1]}')
+            print(f'Add to left axis: {new_left_data[1]}')
             new_left_data = new_left_data[1]
         else:
             new_left_data = new_left_data[0]
@@ -503,7 +512,7 @@ class CurrentProcessPlot(pg.PlotWidget):
 
     def updateRightAxis(self,new_right_data):
         # new_right_data needs to be a list
-#         print(f'Add to right axis: {new_right_data}')
+        print(f'Add to right axis: {new_right_data}')
         for i,trace in enumerate(self.rightTraceList):
             xdata,ydata = trace.getData()
             # print(xdata,ydata) ## debugging
@@ -530,29 +539,70 @@ class BasicLoggingPlot(pg.PlotWidget):
         ydata = np.append(ydata,new_data)
         self.trace.setData(x=xdata,y=ydata)
 
+class BoxedPlot(qw.QWidget):
+    def __init__(self, plot_title):
+        super().__init__()
+        masterLayout = qw.QVBoxLayout()
+        # self.pen = pg.mkPen(color, width=2)
 
+        layout = qw.QVBoxLayout()
+        self.group = qw.QGroupBox(plot_title)
+        self.plot = pg.PlotWidget()
+        self.plot.getPlotItem().showGrid(x=True, y=True, alpha=1)
+        if "qdarkstyle" in sys.modules:
+            self.plot.setBackground((25, 35, 45))
+        self.group.setLayout(layout)
+        self.message = qw.QLabel("Inactive")
+        layout.addWidget(self.message)
+        layout.addWidget(self.plot)
+        masterLayout.addWidget(self.group)
 
-if __name__ == "__main__":
+        self.setLayout(masterLayout)
     
-    from pathlib import Path
-    logger = logging.getLogger('TubeFurnaceController')
-    logger.setLevel(logging.DEBUG)
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(logging.INFO)
-    handler.setFormatter(
-        logging.Formatter('%(asctime)s : %(levelname)s : %(message)s')
-    )
-    logger.addHandler(handler)
+        self.p2 = pg.ViewBox()
+        self.plot.showAxis('right')
+        self.plot.scene().addItem(self.p2)
+        self.plot.getAxis('right').linkToView(self.p2)
+        self.p2.setXLink(self.plot)
+        # self.setLabel('right',rightLabel,units=rightUnits,color=rightColor)
+        self.updateViews()
+        self.plot.getViewBox().sigResized.connect(self.updateViews)
 
-    file_handler = logging.FileHandler(Path.cwd().joinpath(f'TubeFurnaceGUI_python_log.log'))
-    file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(
-        logging.Formatter('%(asctime)s, %(threadName)s, %(levelname)s, %(message)s')
-    )
-    logger.addHandler(file_handler)
+        self.rightLegend = pg.LegendItem()
+        self.p2.addItem(self.rightLegend)
 
-#     logger = logging.getLogger(__name__)
-#     logger.addHandler(logging.NullHandler())
+    def updateViews(self):
+            self.p2.setGeometry(self.plot.getViewBox().sceneBoundingRect())
+            self.p2.linkedViewChanged(self.plot.getViewBox(), self.p2.XAxis)
+
+    def updateLeftAxis(self, new_left_data):
+        print(f'Add to left axis: {new_left_data}')
+        if len(new_left_data)==3:
+            print(f'Add to left axis: {new_left_data[1]}')
+            new_left_data = new_left_data[1]
+        else:
+            new_left_data = new_left_data[0]
+        xdata,ydata = self.leftTrace.getData()
+        xdata = np.append(xdata,time())
+        # ydata = np.append(ydata,100)
+        ydata = np.append(ydata,new_left_data)
+        self.leftTrace.setData(x=xdata,y=ydata)
+        # self.getViewBox().autoRange()
+
+    def updateRightAxis(self,new_right_data):
+        # new_right_data needs to be a list
+        print(f'Add to right axis: {new_right_data}')
+        for i,trace in enumerate(self.p2.getDataItems()):
+            xdata,ydata = trace.getData()
+            # print(xdata,ydata) ## debugging
+            xdata = np.append(xdata,time())
+            ydata = np.append(ydata,new_right_data[i])
+            trace.setData(x=xdata,y=ydata)
+        # self.p2.autoRange()
+if __name__ == "__main__":
+
+    logger = logging.getLogger(__name__)
+    logger.addHandler(logging.NullHandler())
     app = qw.QApplication(sys.argv)
     try:
         import qdarkstyle

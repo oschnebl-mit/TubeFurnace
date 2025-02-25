@@ -1,0 +1,213 @@
+import sys, logging
+from time import time, sleep
+from PyQt5 import QtGui,QtCore
+import PyQt5.QtWidgets as qw 
+import pyqtgraph as pg
+# import numpy as np
+
+from TubeFurnaceInstruments import PressureGauge, MFCControl, FurnaceControl
+from TubeFurnaceParams import ProcessParams, OtherParams
+from ControlThreads import LoggingThread, ProcessThread, FillProcessThread, TempLoggingPlot, BasicLoggingPlot, FlowLoggingPlot,CurrentProcessPlot,BoxedPlot
+
+class MainControlWindow(qw.QMainWindow):
+    def __init__(self, logger, testing = False):
+        super().__init__()
+        self.testing = testing
+        self.logger = logger
+        self.setWindowTitle('Control Panel')
+
+        self.loggingOn = False
+
+        self.resize(1280,720) # non-maximized state
+
+        if self.testing == False:
+            self.showMaximized()
+
+        self.initUI()
+       
+        self.initThreads()
+
+        ### connect GUI items made in initUI() to threads made in initThreads()
+                ## make logging button a toggle?
+        self.startLoggingButton.clicked.connect(self.startLogging)
+        self.fillButton.clicked.connect(self.runFillProcess)
+        self.startProcessButton.clicked.connect(self.runAnnealProcess)
+        self.abortProcessButton.clicked.connect(self.abortAll)
+        # self.abortProcessButton.clicked.connect(self.ProcessThread.abort())
+        self.delayInput.returnPressed.connect(self.updateLoggingDelay)
+
+        self.show()
+
+    def updateLoggingDelay(self):
+        # self.delay = int(self.delayInput.text())
+        self.delay = self.othertree.p.param('Logging Interval (s)').value()
+        print(f'change logging interval to {self.delay}')
+
+        self.LoggingThread.delay = self.delay
+
+    def startLogging(self):
+        if self.startLoggingButton.isChecked:
+            self.LoggingThread.running = False
+        else:
+            self.LoggingThread.start()
+
+
+    def initThreads(self):
+        ## get params we need from tree:
+        self.delay = self.othertree.p.param('Logging Interval (s)').value()
+        self.overpressure_limit = self.othertree.p.param('Overpressure Limit (Torr)').value()
+
+        self.MFC = MFCControl(logger=self.logger,testing=self.testing)
+        self.PGauge = PressureGauge(logger=self.logger,overpressure_limit=self.overpressure_limit,testing=self.testing)
+        self.Furnace = FurnaceControl(logger=self.logger,testing=self.testing)
+        self.LoggingThread = LoggingThread(logger = self.logger, pgauge = self.PGauge, furnace = self.Furnace, mfc = self.MFC, overpressure = self.overpressure_limit)
+        self.ProcessThread = ProcessThread(testing = self.testing, logger=self.logger, pgauge = self.PGauge, furnace = self.Furnace, mfc = self.MFC,ptree = self.tree)
+        self.FillThread = FillProcessThread(testing = self.testing, logger=self.logger, pgauge = self.PGauge, furnace = self.Furnace, mfc = self.MFC,tree = self.othertree)
+        
+        self.LoggingThread.overpressure_error.connect(self.ProcessThread.abort)
+        self.LoggingThread.new_pressure_data.connect(self.pressurePlot.update)
+        self.LoggingThread.new_temp_data.connect(self.tempPlot.update) 
+        self.LoggingThread.new_flow_data.connect(self.flowPlot.update)
+        # self.LoggingThread.new_Ar_data.connect(self.flowPlot.updateAr)
+        # self.LoggingThread.new_H2S_data.connect(self.flowPlot.updateH2S)
+
+    def runFillProcess(self):
+        ''' This function initializes the current process plot then calls the fill process thread'''
+        # if self.testing:
+        #     print("Fill tube with Ar")
+        #     print(self.othertree.getFillValue('Approach Pressure (Torr)'))
+        try:
+            ## disconnect other signals if conncted
+            self.LoggingThread.new_temp_data.disconnect(self.currentProcessPlot.updateLeftAxis)
+            self.LoggingThread.new_flow_data.disconnect(self.currentProcessPlot.updateRightAxis)
+        except:
+            pass
+        ## get plot ready
+        self.currentProcessPlot.plot.clear()
+        self.currentProcessPlot.p2.clear()
+        self.currentProcessPlot.plot.setLabel('left','Pressure',units='Torr')
+        self.currentProcessPlot.plot.setLabel('right','Flow',units='sccm')
+        self.currentProcessPlot.leftTrace = pg.PlotCurveItem(pen=self.pressurePen)
+        self.currentProcessPlot.plot.addItem(self.currentProcessPlot.leftTrace)
+        self.currentProcessPlot.rightTrace = pg.PlotCurveItem(pen=self.flowPen)
+        self.currentProcessPlot.p2.addItem(self.currentProcessPlot.rightTrace)
+        self.FillThread.message.connect(self.currentProcessPlot.message.setText)
+        self.FillThread.new_pressure_data.connect(self.currentProcessPlot.updateLeftAxis)
+        self.FillThread.new_Ar_data.connect(self.currentProcessPlot.updateRightAxis)
+        self.FillThread.finished.connect(self.finishFillMessage)
+        self.FillThread.start()
+
+    def finishFillMessage(self):
+        self.currentProcessPlot.message.setText('Finished fill process')
+
+    def runAnnealProcess(self):
+        try:
+            self.FillThread.new_pressure_data.disconnect(self.currentProcessPlot.updateLeftAxis)
+            self.FillThread.new_Ar_data.disconnect(self.currentProcessPlot.updateRightAxis)
+        except:
+            pass
+
+        self.currentProcessPlot.plot.clear()
+        self.currentProcessPlot.p2.clear()
+        self.currentProcessPlot.plot.setLabel('left','Temperature',units='C')
+        self.currentProcessPlot.plot.setLabel('right','Flow',units='sccm')
+        self.currentProcessPlot.leftTrace = pg.PlotCurveItem(pen=self.tempPen)
+        self.currentProcessPlot.plot.addItem(self.currentProcessPlot.leftTrace)
+        self.currentProcessPlot.ArTrace = pg.PlotCurveItem(pen=self.flowPen)
+        self.currentProcessPlot.p2.addItem(self.currentProcessPlot.ArTrace)
+        self.currentProcessPlot.H2STrace = pg.PlotCurveItem(pen=self.flowPen)
+        self.currentProcessPlot.p2.addItem(self.currentProcessPlot.H2STrace)
+
+        self.LoggingThread.new_temp_data.connect(self.currentProcessPlot.updateLeftAxis)
+        self.LoggingThread.new_flow_data.connect(self.currentProcessPlot.updateRightAxis)
+        self.ProcessThread.message.connect(self.currentProcessPlot.message.setText)
+        self.ProcessThread.start()
+            
+
+    def abortAll(self):
+        if self.FillThread.running:
+            self.FillThread.abort()
+        if self.ProcessThread.running:
+            self.ProcessThread.abort()
+
+    def initUI(self):
+        ## Create an empty box to hold all the following widgets
+        self.mainbox = qw.QWidget()
+        self.setCentralWidget(self.mainbox)  # Put it in the center of the main window
+        layout = qw.QGridLayout()  # All the widgets will be in a grid in the main box
+        self.mainbox.setLayout(layout)  # set the layout\
+
+        ## ~~ Colors ~~ ####
+        self.pressurePen = pg.mkPen(color='#5DB4B7',width=2)
+        self.flowPen = pg.mkPen(color='#DFC245',width=2)
+        self.tempPen = pg.mkPen(color='#CC3300',width=3)
+
+        self.h2sColor = '#DFC245'
+        self.arColor = '#C1DE55'
+        self.pressureColor = '#5DB4B7'
+        self.tempColor = '#CC3300'
+
+        ########################
+
+        self.tree = ProcessParams()
+        self.othertree = OtherParams()
+
+        self.tempPlot = TempLoggingPlot('Temperature','C',self.tempColor)
+        # print('made temp plot')
+        self.pressurePlot = BasicLoggingPlot('Pressure','Torr',self.pressureColor)
+        # print('made pressure plot')
+        self.flowPlot = FlowLoggingPlot('Flow','sccm',[self.arColor,self.h2sColor])
+        # print('made flow plot')
+        # self.currentProcessPlot = CurrentProcessPlot('Pressure','Torr',self.pressureColor,'Flow','sccm',self.arColor,['Ar'])
+        self.currentProcessPlot = BoxedPlot('Current Process',)
+        self.cp2 = None ## second trace on current process plot
+        # print('made empty CP2')
+
+        self.startLoggingButton = qw.QPushButton("Start Logging") ## in the future make this a toggle?
+        self.startLoggingButton.setCheckable(True)
+
+        self.fillButton = qw.QPushButton("Bring tube to atmospheric pressure")
+        self.startProcessButton = qw.QPushButton("Start Anneal")
+        self.abortProcessButton = qw.QPushButton("Abort Process")
+        self.delayInputLabel = qw.QLabel('Logging Interval (s):')
+        self.delayInput = qw.QLineEdit('10')
+        self.delayInput.setValidator(QtGui.QIntValidator())
+
+        self.othertree.log_interval_change.connect(self.updateLoggingDelay)
+
+
+
+        ## grid layout adds as                   r c rs cs (last 2 are rowspan, colspan)
+        layout.addWidget(self.tree,              0,0,6, 1)
+        layout.addWidget(self.currentProcessPlot,7,0,6, 2)
+
+        layout.addWidget(self.othertree,         0,1,3, 1)
+        layout.addWidget(self.startLoggingButton,3,1,1, 1)
+        # layout.addWidget(self.delayInputLabel,   1,1,1, 1)
+        # layout.addWidget(self.delayInput,        2,1,1, 1)
+        layout.addWidget(self.startProcessButton,4,1,1, 1)
+        layout.addWidget(self.fillButton,        5,1,1, 1)
+        layout.addWidget(self.abortProcessButton,6,1,1, 1)
+
+        layout.addWidget(self.tempPlot,          0,2,4, 1)
+        layout.addWidget(self.pressurePlot,      4,2,5, 1)
+        layout.addWidget(self.flowPlot,          9,2,4, 1)
+
+        for r in range(12):
+            layout.setRowStretch(r,1)
+
+if __name__ == "__main__":
+
+    logger = logging.getLogger(__name__)
+    logger.addHandler(logging.NullHandler())
+    app = qw.QApplication(sys.argv)
+    try:
+        import qdarkstyle
+        app.setStyleSheet(qdarkstyle.load_stylesheet())
+    except:
+        pass
+
+    window = MainControlWindow(logger = logger, testing = True)
+    
+    sys.exit(app.exec())
+    
