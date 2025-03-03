@@ -154,10 +154,11 @@ class FillProcessThread(QtCore.QThread):
         self.abortPoints = abortPoints
 
     def abort(self):
-#         self.MFC.set_sccm('Ar',0)
+        self.MFC.set_sccm('Ar',0)
         print('Aborting fill process')
         self.MFC.stop_all_gas_flows()
         self.running=False
+#         self.t0 = time()
         ## taking points causing issues for abort
 #         for n in range(self.abortPoints): ## take a few data points so user can see flow has stopped
 #             Ar_sccm = self.MFC.get_data(self.MFC.gas_ids['Ar'])['sccm']
@@ -285,8 +286,13 @@ class MainControlWindow(qw.QMainWindow):
             self.LoggingThread.new_flow_data.disconnect(self.currentProcessPlot.updateRightAxis)
         except:
             pass
-        # self.currentProcessPlot.clear()
-        # self.currentProcessPlot.p2.clear()
+        self.currentProcessPlot.clear()
+        self.currentProcessPlot.p2.clear()
+        self.currentProcessPlot.leftTrace = pg.PlotCurveItem(pen=self.pressurePen)
+        self.currentProcessPlot.addItem(self.currentProcessPlot.leftTrace)
+        Ar_trace = pg.PlotCurveItem(pen=self.flowPen)
+        self.currentProcessPlot.rightTraceList = [Ar_trace]
+        self.currentProcessPlot.p2.addItem(Ar_trace)
         # self.currentProcessPlot.__init__('Pressure','Torr',self.pressureColor,'Flow','sccm',self.arColor,['Ar'])
 
         self.FillThread.new_pressure_data.connect(self.currentProcessPlot.updateLeftAxis)
@@ -460,7 +466,9 @@ class CurrentProcessPlot(pg.PlotWidget):
         super().__init__()
         self.setAxisItems({'bottom':pg.DateAxisItem()})
         self.getPlotItem().showGrid(x=True, y=True, alpha = 0.5)
-        self.leftTrace = self.plot(x=[time()],y=[0],pen = pg.mkPen(color=leftColor,width=2))
+        self.leftTrace = pg.PlotCurveItem(pen=pg.mkPen(color=leftColor,width=2))
+        self.addItem(self.leftTrace)
+#         self.leftTrace = self.plot(x=[time()],y=[0],pen = pg.mkPen(color=leftColor,width=2))
         self.setLabel('left',leftLabel,units=leftUnits,color=leftColor)
 
         self.p2 = pg.ViewBox()
