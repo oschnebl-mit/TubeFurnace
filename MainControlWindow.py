@@ -35,6 +35,7 @@ class MainControlWindow(qw.QMainWindow):
         self.abortProcessButton.clicked.connect(self.abortAll)
         # self.abortProcessButton.clicked.connect(self.ProcessThread.abort())
         self.delayInput.returnPressed.connect(self.updateLoggingDelay)
+        self.programFurnaceButton.clicked.connect(self.programFurnace)
 
         self.show()
 
@@ -46,11 +47,22 @@ class MainControlWindow(qw.QMainWindow):
         self.LoggingThread.delay = self.delay
 
     def startLogging(self):
-        if self.startLoggingButton.isChecked:
+        # if self.startLoggingButton.isChecked
+        if self.LoggingThread.running:
             self.LoggingThread.running = False
+            print('pause logging')
         else:
+            print('start logging')
             self.LoggingThread.start()
 
+    def programFurnace(self):
+        ## meant to program furnace without starting, if user wants to check
+        furnace_params = []
+        for si in range(1,len(self.tree.p.children())):
+            # if self.tree.getValue(si,'Time') == 0:
+            #     break
+            furnace_params.append((self.tree.getValue(si,'Temperature'),self.tree.getValue(si,'Time')))
+        self.Furnace.programFurnace(furnace_params)
 
     def initThreads(self):
         ## get params we need from tree:
@@ -78,8 +90,8 @@ class MainControlWindow(qw.QMainWindow):
         #     print(self.othertree.getFillValue('Approach Pressure (Torr)'))
         try:
             ## disconnect other signals if conncted
-            self.LoggingThread.new_temp_data.disconnect(self.currentProcessPlot.updateLeftAxis)
-            self.LoggingThread.new_flow_data.disconnect(self.currentProcessPlot.updateRightAxis)
+            self.LoggingThread.new_temp_data.disconnect(self.currentProcessPlot.updateRightAxis)
+            self.LoggingThread.new_flow_data.disconnect(self.currentProcessPlot.updateLeftAxis)
         except:
             pass
         ## get plot ready
@@ -109,17 +121,17 @@ class MainControlWindow(qw.QMainWindow):
 
         self.currentProcessPlot.plot.clear()
         self.currentProcessPlot.p2.clear()
-        self.currentProcessPlot.plot.setLabel('left','Temperature',units='C')
-        self.currentProcessPlot.plot.setLabel('right','Flow',units='sccm')
-        self.currentProcessPlot.leftTrace = pg.PlotCurveItem(pen=self.tempPen)
-        self.currentProcessPlot.plot.addItem(self.currentProcessPlot.leftTrace)
-        self.currentProcessPlot.ArTrace = pg.PlotCurveItem(pen=self.flowPen)
-        self.currentProcessPlot.p2.addItem(self.currentProcessPlot.ArTrace)
-        self.currentProcessPlot.H2STrace = pg.PlotCurveItem(pen=self.flowPen)
-        self.currentProcessPlot.p2.addItem(self.currentProcessPlot.H2STrace)
+        self.currentProcessPlot.plot.setLabel('right','Temperature',units='C')
+        self.currentProcessPlot.plot.setLabel('left','Flow',units='sccm')
+        self.currentProcessPlot.rightTrace = pg.PlotCurveItem(pen=self.tempPen) # have to name rightTrace
+        self.currentProcessPlot.p2.addItem(self.currentProcessPlot.rightTrace)
+        self.currentProcessPlot.ArTrace = pg.PlotCurveItem(pen=pg.mkPen(color=self.arColor,width=3))
+        self.currentProcessPlot.plot.addItem(self.currentProcessPlot.ArTrace)
+        self.currentProcessPlot.H2STrace = pg.PlotCurveItem(pen=pg.mkPen(color=self.h2sColor,width=3))
+        self.currentProcessPlot.plot.addItem(self.currentProcessPlot.H2STrace)
 
-        self.LoggingThread.new_temp_data.connect(self.currentProcessPlot.updateLeftAxis)
-        self.LoggingThread.new_flow_data.connect(self.currentProcessPlot.updateRightAxis)
+        self.LoggingThread.new_temp_data.connect(self.currentProcessPlot.updateRightAxis)
+        self.LoggingThread.new_flow_data.connect(self.currentProcessPlot.updateLeftAxis)
         self.ProcessThread.message.connect(self.currentProcessPlot.message.setText)
         self.ProcessThread.start()
             
@@ -165,33 +177,36 @@ class MainControlWindow(qw.QMainWindow):
 
         self.startLoggingButton = qw.QPushButton("Start Logging") ## in the future make this a toggle?
         self.startLoggingButton.setCheckable(True)
-
+        # self.startLoggingButton.setChecked(False)
         self.fillButton = qw.QPushButton("Bring tube to atmospheric pressure")
         self.startProcessButton = qw.QPushButton("Start Anneal")
         self.abortProcessButton = qw.QPushButton("Abort Process")
         self.delayInputLabel = qw.QLabel('Logging Interval (s):')
         self.delayInput = qw.QLineEdit('10')
         self.delayInput.setValidator(QtGui.QIntValidator())
+        self.programFurnaceButton = qw.QPushButton("Program Furnace")
+        self.programFurnaceButton.setToolTip("Optional. Set furnace program without running.")
 
         self.othertree.log_interval_change.connect(self.updateLoggingDelay)
 
 
 
-        ## grid layout adds as                   r c rs cs (last 2 are rowspan, colspan)
-        layout.addWidget(self.tree,              0,0,6, 1)
-        layout.addWidget(self.currentProcessPlot,7,0,6, 2)
+        ## grid layout adds as                     r c rs cs (last 2 are rowspan, colspan)
+        layout.addWidget(self.tree,                0,0,5, 1)
+        layout.addWidget(self.programFurnaceButton,6,0,1, 1)
+        layout.addWidget(self.currentProcessPlot,  7,0,6, 2)
 
-        layout.addWidget(self.othertree,         0,1,3, 1)
-        layout.addWidget(self.startLoggingButton,3,1,1, 1)
+        layout.addWidget(self.othertree,           0,1,3, 1)
+        layout.addWidget(self.startLoggingButton,  3,1,1, 1)
         # layout.addWidget(self.delayInputLabel,   1,1,1, 1)
         # layout.addWidget(self.delayInput,        2,1,1, 1)
-        layout.addWidget(self.startProcessButton,4,1,1, 1)
-        layout.addWidget(self.fillButton,        5,1,1, 1)
-        layout.addWidget(self.abortProcessButton,6,1,1, 1)
+        layout.addWidget(self.startProcessButton,  4,1,1, 1)
+        layout.addWidget(self.fillButton,          5,1,1, 1)
+        layout.addWidget(self.abortProcessButton,  6,1,1, 1)
 
-        layout.addWidget(self.tempPlot,          0,2,4, 1)
-        layout.addWidget(self.pressurePlot,      4,2,5, 1)
-        layout.addWidget(self.flowPlot,          9,2,4, 1)
+        layout.addWidget(self.tempPlot,            0,2,4, 1)
+        layout.addWidget(self.pressurePlot,        4,2,5, 1)
+        layout.addWidget(self.flowPlot,            9,2,4, 1)
 
         for r in range(12):
             layout.setRowStretch(r,1)

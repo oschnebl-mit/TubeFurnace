@@ -1,34 +1,4 @@
-    #     new_temp_data = QtCore.pyqtSignal(object) ## type is a list [z1, z2, z3]
-    #  def runFurnace(self):
-    #     ## maybe a bit confusing, but run only tracks temp, doesn't start furnace
-    #     self.running = True
-    #     while self.running:
-    #         new_data = self.getAllTemperatures()
-    #         self.new_temp_data.emit(new_data)
-    #         QtCore.QThread.msleep(self.delay*1000)
 
-    # new_pressure_data = QtCore.pyqtSignal(float)
-    # overpressure_error = QtCore.pyqtSignal(bool)
-    # def runPGauge(self):
-    #     self.running = True
-    #     while self.running:
-    #         measured_pressure = self.getPressure()
-    #         self.new_pressure_data.emit(measured_pressure)
-    #         if measured_pressure > self.overpressure_limit:
-    #             self.overpressure_error.emit(True)
-    #         QtCore.QThread.msleep(self.delay*1000)
-
-    # new_Ar_data = QtCore.pyqtSignal(object)
-    # new_H2S_data = QtCore.pyqtSignal(object)
-    # def runMFC(self):
-    #     ## normal running behavior reads sccm for active gases every [delay] seconds and sends to main
-    #     self.running = True
-    #     while self.running:
-    #         Ar_sccm = self.get_data(self.gas_ids['Ar'])['sccm']
-    #         H2S_sccm = self.get_data(self.gas_ids['H2S'])['sccm']
-    #         self.new_Ar_data.emit(Ar_sccm)
-    #         self.new_H2S_data.emit(H2S_sccm)
-    #         QtCore.QThread.msleep(self.delay*1000)
 import sys, logging
 from time import time, sleep
 from PyQt5 import QtGui,QtCore
@@ -42,13 +12,13 @@ from TubeFurnaceParams import ProcessParams, OtherParams
 class LoggingThread(QtCore.QThread):
     ''' Periodically asks for data from pressure gauge, furnace, and MFCS. Passes measured data and overpressure alarm to main window'''
     overpressure_error = QtCore.pyqtSignal(bool)
-    new_pressure_data = QtCore.pyqtSignal(float)
+    new_pressure_data = QtCore.pyqtSignal(object)
     new_temp_data = QtCore.pyqtSignal(list)
     # new_Ar_data = QtCore.pyqtSignal(object)
     # new_H2S_data = QtCore.pyqtSignal(object)
     new_flow_data = QtCore.pyqtSignal(list)
 
-    def __init__(self,logger, pgauge, furnace, mfc, overpressure = 800, delay = 30, testing = False):
+    def __init__(self,logger, pgauge, furnace, mfc, overpressure = 800, delay = 30):
         super().__init__()
         self.logger = logger
         self.overpressure_limit = overpressure
@@ -419,8 +389,8 @@ class TempLoggingPlot(pg.PlotWidget):
             else:
                 w = 3
                 alpha = 100
-            trace = self.plot(x=[time()],y=[1],pen=pg.mkPen(color='{}{:02x}'.format(color, alpha),width=w))
-            # print(f'made trace {zone} for temp logging plot')
+            trace = pg.PlotCurveItem(pen=pg.mkPen(color='{}{:02x}'.format(color, alpha),width=w))
+            self.addItem(trace)
             self.trace_list.append(trace)
         self.setLabel('left',ylabel,units=yunits,color=color)
         self.setAxisItems({'bottom':pg.DateAxisItem()})
@@ -441,14 +411,15 @@ class FlowLoggingPlot(pg.PlotWidget):
         self.setLabel('left',ylabel,units=yunits,color=colors[0])
         self.traceList = []
         for i,name in enumerate(['Ar','H2S']):
-            self.traceList.append(self.plot(x=[time()],y=[0],pen=pg.mkPen(color='{}{:02x}'.format(colors[i], alpha),width=3),name=name))
-        # self.arTrace = self.plot(x=[time()],y=[1],pen=pg.mkPen(color='{}{:02x}'.format(arColor, alpha),width=3),name='Ar')
-        # self.h2sTrace = self.plot(x=[time()],y=[0],pen=pg.mkPen(color='{}{:02x}'.format(h2sColor, alpha),width=3),name='H2S')
-    
+            trace = pg.PlotCurveItem(pen=pg.mkPen(color='{}{:02x}'.format(colors[i], alpha),width=3),name=name)
+            self.traceList.append(trace)
+            self.addItem(trace)# self.arTrace = self.plot(x=[time()],y=[1],pen=pg.mkPen(color='{}{:02x}'.format(arColor, alpha),width=3),name='Ar')
+            # self.h2sTrace = self.plot(x=[time()],y=[0],pen=pg.mkPen(color='{}{:02x}'.format(h2sColor, alpha),width=3),name='H2S')
+        
     def update(self,new_data):
-        if len(new_data) != len(self.traceList):
+        if len(new_data) != len(self.listDataItems()):
             print(f'Gas data {new_data} does not match number of traces: {len(self.tracelist)}')
-        for i, trace in enumerate(self.traceList):
+        for i, trace in enumerate(self.listDataItems()):
             xdata,ydata = trace.getData()
             xdata = np.append(xdata,time())
             ydata = np.append(ydata,new_data[i])
@@ -474,7 +445,7 @@ class CurrentProcessPlot(pg.PlotWidget):
     def __init__(self,leftLabel,leftUnits,leftColor,rightLabel,rightUnits,rightColor,rightTraceNames):
         super().__init__()
         self.setAxisItems({'bottom':pg.DateAxisItem()})
-        self.getPlotItem().showGrid(x=True, y=True, alpha = 0.5)
+        self.getPlotItem().showGrid(x=True, y=True, alpha = 0.25)
         # self.leftTrace = pg.PlotCurveItem(pen = pg.mkPen(color=leftColor,width=2))
         self.setLabel('left',leftLabel,units=leftUnits,color=leftColor)
         # self.addItem(self.leftTrace)
@@ -527,8 +498,10 @@ class BasicLoggingPlot(pg.PlotWidget):
         super().__init__()
         # self.plot = pg.PlotWidget()
         self.setAxisItems({'bottom':pg.DateAxisItem()})
-        self.getPlotItem().showGrid(x=True, y=True, alpha=1)
-        self.trace = self.plot(x=[time()],y=[1],pen=pg.mkPen(color=color,width=2))
+        self.getPlotItem().showGrid(x=True, y=True, alpha=0.5)
+        # self.trace = self.plot(x=[time()],y=[1],pen=pg.mkPen(color=color,width=2))
+        self.trace = pg.PlotCurveItem(pen=pg.mkPen(color=color,width=2))
+        self.addItem(self.trace)
         # print('made trace on Basic Logging Plot')
         self.setLabel('left',ylabel,units=yunits,color=color)
 
@@ -548,7 +521,8 @@ class BoxedPlot(qw.QWidget):
         layout = qw.QVBoxLayout()
         self.group = qw.QGroupBox(plot_title)
         self.plot = pg.PlotWidget()
-        self.plot.getPlotItem().showGrid(x=True, y=True, alpha=1)
+        self.plot.getPlotItem().showGrid(x=True, y=True, alpha=0.5)
+        self.plot.setAxisItems({'bottom':pg.DateAxisItem()})
         if "qdarkstyle" in sys.modules:
             self.plot.setBackground((25, 35, 45))
         self.group.setLayout(layout)
@@ -568,35 +542,35 @@ class BoxedPlot(qw.QWidget):
         self.updateViews()
         self.plot.getViewBox().sigResized.connect(self.updateViews)
 
-        self.rightLegend = pg.LegendItem()
-        self.p2.addItem(self.rightLegend)
+        self.Legend = pg.LegendItem()
+        self.p2.addItem(self.Legend)
 
     def updateViews(self):
             self.p2.setGeometry(self.plot.getViewBox().sceneBoundingRect())
             self.p2.linkedViewChanged(self.plot.getViewBox(), self.p2.XAxis)
 
-    def updateLeftAxis(self, new_left_data):
-        print(f'Add to left axis: {new_left_data}')
-        if len(new_left_data)==3:
-            print(f'Add to left axis: {new_left_data[1]}')
-            new_left_data = new_left_data[1]
+    def updateRightAxis(self, new_right_data):
+        # print(f'Add to right axis: {new_right_data}')
+        if len(new_right_data)==3:
+            # print(f'Add to right axis: {new_right_data[1]}')
+            new_right_data = new_right_data[1]
         else:
-            new_left_data = new_left_data[0]
-        xdata,ydata = self.leftTrace.getData()
+            new_right_data = new_right_data[0]
+        xdata,ydata = self.rightTrace.getData()
         xdata = np.append(xdata,time())
         # ydata = np.append(ydata,100)
-        ydata = np.append(ydata,new_left_data)
-        self.leftTrace.setData(x=xdata,y=ydata)
+        ydata = np.append(ydata,new_right_data)
+        self.rightTrace.setData(x=xdata,y=ydata)
         # self.getViewBox().autoRange()
 
-    def updateRightAxis(self,new_right_data):
+    def updateLeftAxis(self,new_left_data):
         # new_right_data needs to be a list
-        print(f'Add to right axis: {new_right_data}')
-        for i,trace in enumerate(self.p2.getDataItems()):
+        # print(f'Add to left axis: {new_left_data}')
+        for i,trace in enumerate(self.plot.listDataItems()):
             xdata,ydata = trace.getData()
             # print(xdata,ydata) ## debugging
             xdata = np.append(xdata,time())
-            ydata = np.append(ydata,new_right_data[i])
+            ydata = np.append(ydata,new_left_data[i])
             trace.setData(x=xdata,y=ydata)
         # self.p2.autoRange()
 if __name__ == "__main__":
@@ -610,7 +584,7 @@ if __name__ == "__main__":
     except:
         pass
 
-    window = MainControlWindow(logger = logger, testing = False)
+    window = MainControlWindow(logger = logger, testing = True)
     
     sys.exit(app.exec())
     
