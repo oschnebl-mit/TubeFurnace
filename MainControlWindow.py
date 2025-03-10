@@ -214,7 +214,7 @@ class MainControlWindow(qw.QMainWindow):
 if __name__ == "__main__":
     timestr = strftime('%Y%m%d-%H%M%S')
     logger = logging.getLogger(__name__)
-    logging.basicConfig(filename=f'logs/TubeFurnaceGUI_{timestr}.log',level=logging.INFO)
+    logging.basicConfig(filename=f'logs/TubeFurnaceGUI_{timestr}.log',level=logging.DEBUG)
     logger.addHandler(logging.NullHandler())
     app = qw.QApplication(sys.argv)
     try:
@@ -223,7 +223,7 @@ if __name__ == "__main__":
     except:
         pass
 
-    window = MainControlWindow(logger = logger, testing = False)
+    window = MainControlWindow(logger = logger, testing = True)
     
     sys.exit(app.exec())
     

@@ -16,7 +16,7 @@ class LoggingThread(QtCore.QThread):
     new_temp_data = QtCore.pyqtSignal(list)
     # new_Ar_data = QtCore.pyqtSignal(object)
     # new_H2S_data = QtCore.pyqtSignal(object)
-    new_flow_data = QtCore.pyqtSignal(list)
+    new_flow_data = QtCore.pyqtSignal(list) 
 
     def __init__(self,logger, pgauge, furnace, mfc, overpressure = 800, delay = 30):
         super().__init__()
@@ -100,7 +100,8 @@ class ProcessThread(QtCore.QThread):
     def waitForTemp(self, temperature, tolerance = 5):
         # while True:
         while self.running:
-            currentTemp = self.Furnace.getAllTemperatures()[1] ## zone 2
+            currentTemp = LoggingThread.new_temp_data[1]
+            # currentTemp = self.Furnace.getAllTemperatures()[1] ## zone 2
             currentDelta = currentTemp - temperature
             if abs(currentDelta) < tolerance:
                 break
@@ -117,6 +118,7 @@ class ProcessThread(QtCore.QThread):
         # if self.timer is not None:
         #     self.logger.info('Stopping timer')
         #     self.timer.stop()
+
 
 class FillProcessThread(QtCore.QThread):
     ''' Thread that brings tube to atmospheric pressure. Does it's own measuring because
@@ -145,15 +147,6 @@ class FillProcessThread(QtCore.QThread):
         self.message.emit("Set Ar to 0 for safety")
         self.MFC.set_sccm('Ar',0)
         self.message.emit('Process aborted')
-        self.running=False
-#         self.t0 = time()
-        ## taking points causing issues for abort
-#         for n in range(self.abortPoints): ## take a few data points so user can see flow has stopped
-#             Ar_sccm = self.MFC.get_data(self.MFC.gas_ids['Ar'])['sccm']
-           
-#             self.new_Ar_data.emit([Ar_sccm,0])
-#             self.new_pressure_data.emit(self.PGauge.getPressure())
-#             sleep(self.delay)
 
 
 

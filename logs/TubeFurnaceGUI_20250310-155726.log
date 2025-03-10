@@ -1,0 +1,41 @@
+DEBUG:qdarkstyle:Reading QSS file in: :qdarkstyle\dark\darkstyle.qss
+INFO:qdarkstyle:QSS file successfully loaded.
+DEBUG:qdarkstyle:Checking patches for being applied.
+INFO:qdarkstyle:Found version patches to be applied.
+INFO:qdarkstyle:Found application patches to be applied.
+DEBUG:__main__:Setting Ar to 100 sccm... received 
+INFO:__main__:Setting Ar to initial flow: 100 sccm
+DEBUG:__main__:Setting Ar to 100 sccm... received 
+INFO:__main__:Setting Ar to initial flow: 100 sccm
+DEBUG:__main__:Setting Ar to 100 sccm... received 
+INFO:__main__:Setting Ar to initial flow: 100 sccm
+DEBUG:__main__:Setting Ar to 100 sccm... received 
+INFO:__main__:Setting Ar to initial flow: 100 sccm
+DEBUG:__main__:Setting Ar to 100 sccm... received 
+INFO:__main__:Setting Ar to initial flow: 100 sccm
+INFO:__main__:Setting all gas flows to 0
+DEBUG:__main__:Setting N2 to 0 sccm... received 
+DEBUG:__main__:Setting Ar to 0 sccm... received 
+DEBUG:__main__:Setting O2 to 0 sccm... received 
+DEBUG:__main__:Setting FG to 0 sccm... received 
+DEBUG:__main__:Setting H2S to 0 sccm... received 
+DEBUG:__main__:Setting H2Se to 0 sccm... received 
+DEBUG:__main__:Setting Ar to 0 sccm... received 
+DEBUG:__main__:Setting Ar to 100 sccm... received 
+INFO:__main__:Setting Ar to initial flow: 100 sccm
+DEBUG:__main__:Setting Ar to 100 sccm... received 
+INFO:__main__:Setting Ar to initial flow: 100 sccm
+DEBUG:__main__:Setting Ar to 100 sccm... received 
+INFO:__main__:Setting Ar to initial flow: 100 sccm
+DEBUG:__main__:Setting Ar to 100 sccm... received 
+INFO:__main__:Setting Ar to initial flow: 100 sccm
+DEBUG:__main__:Setting Ar to 100 sccm... received 
+INFO:__main__:Setting Ar to initial flow: 100 sccm
+INFO:__main__:Setting all gas flows to 0
+DEBUG:__main__:Setting N2 to 0 sccm... received 
+DEBUG:__main__:Setting Ar to 0 sccm... received 
+DEBUG:__main__:Setting O2 to 0 sccm... received 
+DEBUG:__main__:Setting FG to 0 sccm... received 
+DEBUG:__main__:Setting H2S to 0 sccm... received 
+DEBUG:__main__:Setting H2Se to 0 sccm... received 
+DEBUG:__main__:Setting Ar to 0 sccm... received 
