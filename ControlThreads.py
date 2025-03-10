@@ -213,7 +213,8 @@ class TempLoggingPlot(pg.PlotWidget):
             else:
                 w = 3
                 alpha = 100
-            trace = pg.PlotCurveItem(pen=pg.mkPen(color='{}{:02x}'.format(color, alpha),width=w))
+            colorval='{}{:02x}'.format(color, alpha)
+            trace = pg.PlotDataItem(pen=pg.mkPen(color=colorval,width=w),symbol='o',symbolBrush=pg.mkBrush(color=color))
             self.addItem(trace)
             self.trace_list.append(trace)
         self.setLabel('left',ylabel,units=yunits,color=color)
@@ -222,9 +223,12 @@ class TempLoggingPlot(pg.PlotWidget):
         # new data is a list of floats
         for i,trace in enumerate(self.trace_list):
             xdata,ydata = trace.getData()
-            xdata = np.append(xdata,time())
-            ydata = np.append(ydata,new_data[i])
-            trace.setData(xdata,ydata)
+            if xdata is None:
+                trace.setData(x=[time()],y=[new_data[i]])
+            else:
+                xdata = np.append(xdata,time())
+                ydata = np.append(ydata,new_data[i])
+                trace.setData(xdata,ydata)
 
 class FlowLoggingPlot(pg.PlotWidget):
     def __init__(self,ylabel,yunits,colors,alpha = 200):
@@ -235,19 +239,25 @@ class FlowLoggingPlot(pg.PlotWidget):
         self.setLabel('left',ylabel,units=yunits,color=colors[0])
         self.traceList = []
         for i,name in enumerate(['Ar','H2S']):
-            trace = pg.PlotCurveItem(pen=pg.mkPen(color='{}{:02x}'.format(colors[i], alpha),width=3),name=name)
+            color = '{}{:02x}'.format(colors[i], alpha)
+            trace = pg.PlotDataItem(pen=pg.mkPen(color=color,width=3),symbol='o',symbolBrush=pg.mkBrush(color=color),name=name) ## trying this to have points and lines
+            # trace = pg.PlotCurveItem(pen=pg.mkPen(color='{}{:02x}'.format(colors[i], alpha),width=3),name=name)
             self.traceList.append(trace)
             self.addItem(trace)# self.arTrace = self.plot(x=[time()],y=[1],pen=pg.mkPen(color='{}{:02x}'.format(arColor, alpha),width=3),name='Ar')
             # self.h2sTrace = self.plot(x=[time()],y=[0],pen=pg.mkPen(color='{}{:02x}'.format(h2sColor, alpha),width=3),name='H2S')
         
     def update(self,new_data):
         if len(new_data) != len(self.listDataItems()):
+            # self.logger.warning(f'Gas data {new_data} does not match number of traces: {len(self.tracelist)}')
             print(f'Gas data {new_data} does not match number of traces: {len(self.tracelist)}')
         for i, trace in enumerate(self.listDataItems()):
             xdata,ydata = trace.getData()
-            xdata = np.append(xdata,time())
-            ydata = np.append(ydata,new_data[i])
-            trace.setData(x=xdata,y=ydata)
+            if xdata is None:
+                trace.setData(x=[time()],y=[new_data[i]])
+            else:
+                xdata = np.append(xdata,time())
+                ydata = np.append(ydata,new_data[i])
+                trace.setData(x=xdata,y=ydata)
 
     def updateH2S(self,new_data):
         xdata,ydata = self.h2sTrace.getData()
@@ -327,17 +337,19 @@ class BasicLoggingPlot(pg.PlotWidget):
         self.setAxisItems({'bottom':pg.DateAxisItem()})
         self.getPlotItem().showGrid(x=True, y=True, alpha=0.5)
         # self.trace = self.plot(x=[time()],y=[1],pen=pg.mkPen(color=color,width=2))
-        self.trace = pg.PlotCurveItem(pen=pg.mkPen(color=color,width=2))
+        self.trace = pg.PlotDataItem(pen=pg.mkPen(color=color,width=2),symbol='o',symbolBrush=pg.mkBrush(color=color))
         self.addItem(self.trace)
         # print('made trace on Basic Logging Plot')
         self.setLabel('left',ylabel,units=yunits,color=color)
 
     def update(self,new_data):
         xdata,ydata = self.trace.getData()
-        # print(old_data)
-        xdata = np.append(xdata,time())
-        ydata = np.append(ydata,new_data)
-        self.trace.setData(x=xdata,y=ydata)
+        if xdata is None:
+            self.trace.setData(x=[time()],y=[new_data])
+        else:
+            xdata = np.append(xdata,time())
+            ydata = np.append(ydata,new_data)
+            self.trace.setData(x=xdata,y=ydata)
 
 class BoxedPlot(qw.QWidget):
     def __init__(self, plot_title):
