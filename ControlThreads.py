@@ -144,8 +144,8 @@ class FillProcessThread(QtCore.QThread):
         self.message.emit("stop all gas flows")
         self.MFC.stop_all_gas_flows()
         self.msleep(1000)
-        self.message.emit("Set Ar to 0 for safety")
-        self.MFC.set_sccm('Ar',0)
+       # self.message.emit("Set Ar to 0 for safety")
+       # self.MFC.set_sccm('Ar',0)
         self.message.emit('Process aborted')
 
 
