@@ -3,7 +3,7 @@ from datetime import datetime
 from time import sleep, time
 import numpy as np
 from pyqtgraph.Qt import QtCore
-
+from threading import Lock
 
 class GenericSerialDevice:
     def __init__(self, logger, com_port=0, baudrate=9600, timeout=0.1, parity=serial.PARITY_NONE, bytesize=serial.EIGHTBITS,
@@ -11,7 +11,7 @@ class GenericSerialDevice:
         self.testing = testing
         self.max_number_of_attempts_per_read = 5
         self.min_ms_between_successive_reads = 50
-        self.com_lock = QtCore.QMutex()
+        self.com_lock = Lock()
         self.com_port = com_port
         self.serial_baudrate = baudrate
         self.serial_timeout = timeout
@@ -90,7 +90,7 @@ class GenericSerialDevice:
         return ""
 
     def ask(self, message, accept_empty_response=False):
-        with self.com_lock: ## note the com_lock (mutex)!
+        with self.com_lock: ## note the com_lock !
             self.write(message)
             return self.read(accept_empty_response)
 
