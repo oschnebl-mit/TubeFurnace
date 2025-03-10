@@ -70,7 +70,7 @@ class MainControlWindow(qw.QMainWindow):
         self.overpressure_limit = self.othertree.p.param('Overpressure Limit (Torr)').value()
 
         self.MFC = MFCControl(logger=self.logger,testing=self.testing)
-        self.PGauge = PressureGauge(logger=self.logger,overpressure_limit=self.overpressure_limit,testing=self.testing)
+        self.PGauge = PressureGauge(logger=self.logger,testing=self.testing)
         self.Furnace = FurnaceControl(logger=self.logger,testing=self.testing)
         self.LoggingThread = LoggingThread(logger = self.logger, pgauge = self.PGauge, furnace = self.Furnace, mfc = self.MFC, overpressure = self.overpressure_limit)
         self.ProcessThread = ProcessThread(testing = self.testing, logger=self.logger, pgauge = self.PGauge, furnace = self.Furnace, mfc = self.MFC,ptree = self.tree)

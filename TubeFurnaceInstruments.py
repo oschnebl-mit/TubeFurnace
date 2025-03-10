@@ -27,6 +27,9 @@ class MFCControl():
         self.testing = testing
         self.delay = delay
 
+        if self.testing:
+            print(self.gas_ids.items())
+
     # def run(self):
     #     ## normal running behavior reads sccm for active gases every [delay] seconds and sends to main
     #     self.running = True
@@ -86,10 +89,9 @@ class MFCControl():
 class PressureGauge():
 
 
-    def __init__(self,overpressure_limit, logger, delay = 30, testing = False):
+    def __init__(self,logger, delay = 30, testing = False):
         # super().__init__()
         self.logger = logger
-        self.overpressure_limit = overpressure_limit
         self.delay = delay
         self.testing = testing
         self.running = False
