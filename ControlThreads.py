@@ -138,6 +138,7 @@ class FillProcessThread(QtCore.QThread):
         self.abortPoints = abortPoints
 
     def abort(self):
+	self.MFC.set_sccm('Ar',0)
         self.MFC.stop_all_gas_flows()
         self.message.emit('Process aborted')
         self.running=False
