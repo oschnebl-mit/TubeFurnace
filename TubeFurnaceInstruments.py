@@ -16,17 +16,30 @@ class MFCControl():
     'H2S': 'E',
     'H2Se': 'F'
     }
+    # new_Ar_data = QtCore.pyqtSignal(object)
+    # new_H2S_data = QtCore.pyqtSignal(object)
 
-
-    def __init__(self, logger, testing = False):
-
+    def __init__(self, logger, delay = 30, testing = False):
+        # super().__init__()
         self.connection = GenericSerialDevice(com_port=3, baudrate=19200, testing=testing, name='MFC Controller')
+        # self.running = False
         self.logger = logger
         self.testing = testing
+        self.delay = delay
 
+    # def run(self):
+    #     ## normal running behavior reads sccm for active gases every [delay] seconds and sends to main
+    #     self.running = True
+    #     while self.running:
+    #         Ar_sccm = self.get_data(self.gas_ids['Ar'])['sccm']
+    #         H2S_sccm = self.get_data(self.gas_ids['H2S'])['sccm']
+    #         self.new_Ar_data.emit(Ar_sccm)
+    #         self.new_H2S_data.emit(H2S_sccm)
+    #         QtCore.QThread.msleep(self.delay*1000)
 
     def get_data(self,gas_id_letter) -> dict:
         if self.testing:
+            ## just for testing allow Ar and H2S to display separately on plot
             if gas_id_letter == self.gas_ids['Ar']:
                 return{
                     key: -2 for key in ['ID', 'PSIA', 'flow_temp', 'vol_flow_ccm', 'sccm', 'sccm_setpoint', 'gas_name']
@@ -41,8 +54,8 @@ class MFCControl():
             response = self.connection.ask(f'{gas_id_letter}')
             return self._process_mfc_response(response)
         
-    @staticmethod
-    def _process_mfc_response(response: str) -> dict:  # TODO confirm this works
+    # @staticmethod
+    def _process_mfc_response(self,response: str) -> dict:  # TODO confirm this works
         numeric_cols = ['PSIA', 'flow_temp', 'vol_flow_ccm', 'sccm', 'sccm_setpoint']
         all_cols = ['ID', 'PSIA', 'flow_temp', 'vol_flow_ccm', 'sccm', 'sccm_setpoint', 'gas_name']
         received_values = response.split()
@@ -71,15 +84,18 @@ class MFCControl():
 
 
 class PressureGauge():
-    ''' Object that holds serial connection to pressure gauge and returns measured value'''
 
-    def __init__(self, logger,testing = False):
 
+    def __init__(self,overpressure_limit, logger, delay = 30, testing = False):
+        # super().__init__()
         self.logger = logger
+        self.overpressure_limit = overpressure_limit
+        self.delay = delay
         self.testing = testing
         self.running = False
-
         self.connection = GenericSerialDevice(com_port = 6, testing = testing, name = 'Pressure Gauge')
+
+
     def getPressure(self):
         if self.testing:
             self.logger.info(f' testing: get Pressure\n')
@@ -94,12 +110,14 @@ class PressureGauge():
                 return -1
             
 class FurnaceControl():
-    '''Object that holds serial connection to furnace and sends it messages '''
 
-    def __init__(self,logger, testing = False):
-
+    def __init__(self,logger,delay = 30, testing = False):
+        # super().__init__()
         self.logger = logger
+        self.delay = delay
         self.testing = testing
+        self.running = False
+
         self.connection = GenericSerialDevice(com_port=4, parity=serial.PARITY_EVEN, testing=testing,
                                                           name='Temperature Controller')
 
