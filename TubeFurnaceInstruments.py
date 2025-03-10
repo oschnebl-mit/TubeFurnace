@@ -78,13 +78,14 @@ class MFCControl():
         ## gas id str is 'H2S', 'Ar', or other plumbed gas, sccm_value is flow rate
         gas_id_letter = self.gas_ids[gas_id_str]
         response = self.connection.ask(f'{gas_id_letter}S{sccm_value}')
-        self.logger.debug(f'Setting {gas_id_str} to {sccm_value} sccm... received {response}')
+        self.logger.info(f'Setting {gas_id_str} to {sccm_value} sccm... received {response}')
 
     def stop_all_gas_flows(self):
+        self.logger.info(f'Setting all gas flows to 0')
         for gas_name, gas_id_letter in self.gas_ids.items():
             self.set_sccm(gas_name, 0)
             sleep(1)
-        self.logger.debug(f'Setting all gas flows to 0')
+
 
 
 class PressureGauge():

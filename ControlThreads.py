@@ -138,9 +138,10 @@ class FillProcessThread(QtCore.QThread):
         self.abortPoints = abortPoints
 
     def abort(self):
+        self.running = False
         self.message.emit("stop all gas flows")
         self.MFC.stop_all_gas_flows()
-        sleep(5)
+        self.msleep(1000)
         self.message.emit("Set Ar to 0 for safety")
         self.MFC.set_sccm('Ar',0)
         self.message.emit('Process aborted')
@@ -195,6 +196,8 @@ class FillProcessThread(QtCore.QThread):
                 message = f'Setting Ar to {self.finalFlow} sccm'
                 if self.testing:
                     dummy_flow = int(self.finalFlow)
+            else:
+                message = 'Error state'
             self.logger.info(message)
             self.message.emit(message)
             self.new_Ar_data.emit([Ar_sccm])
