@@ -1,5 +1,5 @@
 import sys, logging
-from time import time, sleep
+from time import time, sleep, strftime
 from PyQt5 import QtGui,QtCore
 import PyQt5.QtWidgets as qw 
 import pyqtgraph as pg
@@ -212,8 +212,9 @@ class MainControlWindow(qw.QMainWindow):
             layout.setRowStretch(r,1)
 
 if __name__ == "__main__":
-
+    timestr = strftime('%Y%m%d-%H%M%S')
     logger = logging.getLogger(__name__)
+    logging.basicConfig(filename=f'logs/TubeFurnaceGUI_{timestr}.log',level=logging.INFO)
     logger.addHandler(logging.NullHandler())
     app = qw.QApplication(sys.argv)
     try:
