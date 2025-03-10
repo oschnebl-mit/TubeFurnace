@@ -83,7 +83,7 @@ class MFCControl():
     def stop_all_gas_flows(self):
         for gas_name, gas_id_letter in self.gas_ids.items():
             self.set_sccm(gas_name, 0)
-            sleep(0.1)
+            sleep(1)
         self.logger.debug(f'Setting all gas flows to 0')
 
 
