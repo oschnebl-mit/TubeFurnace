@@ -73,7 +73,7 @@ class MainControlWindow(qw.QMainWindow):
         self.PGauge = PressureGauge(logger=self.logger,testing=self.testing)
         self.Furnace = FurnaceControl(logger=self.logger,testing=self.testing)
         self.LoggingThread = LoggingThread(logger = self.logger, pgauge = self.PGauge, furnace = self.Furnace, mfc = self.MFC, overpressure = self.overpressure_limit)
-        self.ProcessThread = ProcessThread(testing = self.testing, logger=self.logger, pgauge = self.PGauge, furnace = self.Furnace, mfc = self.MFC,ptree = self.tree)
+        self.ProcessThread = ProcessThread(testing = self.testing, logger=self.logger, logthread = self.LoggingThread, pgauge = self.PGauge, furnace = self.Furnace, mfc = self.MFC,ptree = self.tree)
         self.FillThread = FillProcessThread(testing = self.testing, logger=self.logger, pgauge = self.PGauge, furnace = self.Furnace, mfc = self.MFC,tree = self.othertree)
         
         self.LoggingThread.overpressure_error.connect(self.ProcessThread.abort)
