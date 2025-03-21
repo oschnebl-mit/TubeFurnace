@@ -105,7 +105,11 @@ class ProcessThread(QtCore.QThread):
             currentTemp = self.Furnace.getAllTemperatures()[1] ## zone 2
             currentDelta = currentTemp - temperature
             self.message.emit(f'Waiting for {temperature} C on zone 2. Current delta {currentDelta} C')
+<<<<<<< HEAD
             print(f'Current temp: {currentTemp} C, current delta: {currentDelta} C')
+=======
+            self.logger.info(f'Waiting for {temperature} C on zone 2. Current delta {currentDelta} C')
+>>>>>>> acb6a783fe6dbded2ae0ef827bf55701f7e15f14
             if abs(currentDelta) < tolerance:
                 break
             sleep(60)
@@ -283,7 +287,8 @@ class CurrentProcessPlot(pg.PlotWidget):
         super().__init__()
         self.setAxisItems({'bottom':pg.DateAxisItem()})
         self.getPlotItem().showGrid(x=True, y=True, alpha = 0.5)
-        self.leftTrace = pg.PlotCurveItem(pen=pg.mkPen(color=leftColor,width=2))
+        # self.leftTrace = pg.PlotCurveItem(pen=pg.mkPen(color=leftColor,width=2))
+        self.leftTrace = pg.PlotDataItem(pen=pg.mkPen(color=leftColor,width=1),symbol='o',symbolBrush=pg.mkBrush(color=leftColor))
         self.addItem(self.leftTrace)
 #         self.leftTrace = self.plot(x=[time()],y=[0],pen = pg.mkPen(color=leftColor,width=2))
 
@@ -315,10 +320,13 @@ class CurrentProcessPlot(pg.PlotWidget):
         else:
             new_left_data = new_left_data[0]
         xdata,ydata = self.leftTrace.getData()
-        xdata = np.append(xdata,time())
-        # ydata = np.append(ydata,100)
-        ydata = np.append(ydata,new_left_data)
-        self.leftTrace.setData(x=xdata,y=ydata)
+        if xdata is None:
+            self.leftTrace.setData(x=[time()],y=[new_left_data])
+        else:
+            xdata = np.append(xdata,time())
+            # ydata = np.append(ydata,100)
+            ydata = np.append(ydata,new_left_data)
+            self.leftTrace.setData(x=xdata,y=ydata)
         # self.getViewBox().autoRange()
 
     def updateRightAxis(self,new_right_data):
@@ -326,10 +334,12 @@ class CurrentProcessPlot(pg.PlotWidget):
         print(f'Add to right axis: {new_right_data}')
         for i,trace in enumerate(self.rightTraceList):
             xdata,ydata = trace.getData()
-            # print(xdata,ydata) ## debugging
-            xdata = np.append(xdata,time())
-            ydata = np.append(ydata,new_right_data[i])
-            trace.setData(x=xdata,y=ydata)
+            if xdata is None:
+                trace.setData(x=[time()],y=[new_right_data[i]])
+            else:
+                xdata = np.append(xdata,time())
+                ydata = np.append(ydata,new_right_data[i])
+                trace.setData(x=xdata,y=ydata)
         # self.p2.autoRange()
 
 
