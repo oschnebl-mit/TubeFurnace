@@ -105,7 +105,7 @@ class ProcessThread(QtCore.QThread):
             currentTemp = self.Furnace.getAllTemperatures()[1] ## zone 2
             currentDelta = currentTemp - temperature
             self.message.emit(f'Waiting for {temperature} C on zone 2. Current delta {currentDelta} C')
-            print(f'Current temp: {currenTemp} C, current delta: {currentDelta} C')
+            print(f'Current temp: {currentTemp} C, current delta: {currentDelta} C')
             if abs(currentDelta) < tolerance:
                 break
             sleep(60)
