@@ -99,9 +99,9 @@ class MainControlWindow(qw.QMainWindow):
         self.currentProcessPlot.p2.clear()
         self.currentProcessPlot.plot.setLabel('left','Pressure',units='Torr')
         self.currentProcessPlot.plot.setLabel('right','Flow',units='sccm')
-        self.currentProcessPlot.leftTrace = pg.PlotCurveItem(pen=self.pressurePen)
+        self.currentProcessPlot.leftTrace = pg.PlotDataItem(pen=self.pressurePen,symbol='o',symbolBrush=pg.mkBrush(color=self.pressureColor))
         self.currentProcessPlot.plot.addItem(self.currentProcessPlot.leftTrace)
-        self.currentProcessPlot.rightTrace = pg.PlotCurveItem(pen=self.flowPen)
+        self.currentProcessPlot.rightTrace = pg.PlotDataItem(pen=self.flowPen,symbol='o',symbolBrush=pg.mkBrush(color=self.arColor))
         self.currentProcessPlot.p2.addItem(self.currentProcessPlot.rightTrace)
         self.FillThread.message.connect(self.currentProcessPlot.message.setText)
         self.FillThread.new_pressure_data.connect(self.currentProcessPlot.updateLeftAxis)
@@ -123,11 +123,11 @@ class MainControlWindow(qw.QMainWindow):
         self.currentProcessPlot.p2.clear()
         self.currentProcessPlot.plot.setLabel('right','Temperature',units='C')
         self.currentProcessPlot.plot.setLabel('left','Flow',units='sccm')
-        self.currentProcessPlot.rightTrace = pg.PlotCurveItem(pen=self.tempPen) # have to name rightTrace
+        self.currentProcessPlot.rightTrace = pg.PlotDataItem(pen=self.tempPen,symbol='o',symbolBrush=pg.mkBrush(color=self.tempColor)) # have to name rightTrace
         self.currentProcessPlot.p2.addItem(self.currentProcessPlot.rightTrace)
-        self.currentProcessPlot.ArTrace = pg.PlotCurveItem(pen=pg.mkPen(color=self.arColor,width=3))
+        self.currentProcessPlot.ArTrace = pg.PlotDataItem(pen=pg.mkPen(color=self.arColor,width=3),symbol='o',symbolburhs=pg.mkBrush(color=self.arColor))
         self.currentProcessPlot.plot.addItem(self.currentProcessPlot.ArTrace)
-        self.currentProcessPlot.H2STrace = pg.PlotCurveItem(pen=pg.mkPen(color=self.h2sColor,width=3))
+        self.currentProcessPlot.H2STrace = pg.PlotDataItem(pen=pg.mkPen(color=self.h2sColor,width=3),symbol='o',symbolBrush=pg.mkBrush(color=self.h2sColor))
         self.currentProcessPlot.plot.addItem(self.currentProcessPlot.H2STrace)
 
         self.LoggingThread.new_temp_data.connect(self.currentProcessPlot.updateRightAxis)
@@ -141,6 +141,16 @@ class MainControlWindow(qw.QMainWindow):
             self.FillThread.abort()
         if self.ProcessThread.running:
             self.ProcessThread.abort()
+
+    def closeEvent(self,event):
+        if self.testing:
+            print("trying to close gracefully")
+        else:
+            self.logger.info(f'Closing serial connections and GUI window.')
+            self.Furnace.connection.close_connection()
+            self.MFC.connection.close_connection()
+            self.PGauge.connection.close_connection()
+        event.accept()
 
     def initUI(self):
         ## Create an empty box to hold all the following widgets
