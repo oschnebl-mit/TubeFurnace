@@ -120,4 +120,4 @@ class OtherParams(ParameterTree):
         newPressure = self.getFillValue('Fill Pressure (Torr)')
         if  newPressure < self.getFillValue('Approach Pressure (Torr)'):
             # print(oldPressure)           
-            self.p.param('Fill Parameters','Approach Pressure (Torr)').setValue(newPressure)
+            self.p.param('Fill Parameters','Approach Pressure (Torr)').setValue(int(newPressure-5))
