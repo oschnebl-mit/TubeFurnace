@@ -5,7 +5,7 @@ from PyQt5 import QtGui,QtCore
 import PyQt5.QtWidgets as qw 
 import pyqtgraph as pg
 import numpy as np
-
+import csv
 from TubeFurnaceInstruments import PressureGauge, MFCControl, FurnaceControl
 from TubeFurnaceParams import ProcessParams, OtherParams
 
@@ -18,9 +18,10 @@ class LoggingThread(QtCore.QThread):
     # new_H2S_data = QtCore.pyqtSignal(object)
     new_flow_data = QtCore.pyqtSignal(list) 
 
-    def __init__(self,logger, pgauge, furnace, mfc, overpressure = 800, delay = 30):
+    def __init__(self,logger, save_path, pgauge, furnace, mfc, overpressure = 800, delay = 30):
         super().__init__()
         self.logger = logger
+        self.save_path = save_path
         self.overpressure_limit = overpressure
         self.running = False
         self.delay = delay
@@ -30,21 +31,40 @@ class LoggingThread(QtCore.QThread):
 
     def run(self):
         self.running = True
+        row = 0
         while self.running:
+            ## get pressure and send data to plot
             measured_pressure = self.pgauge.getPressure()
             self.new_pressure_data.emit(measured_pressure)
             if measured_pressure > self.overpressure_limit:
                 self.overpressure_error.emit(True)
-
+            ## get zone temperatures and send data to plot
             measured_temps = self.furnace.getAllTemperatures()
             self.new_temp_data.emit(measured_temps)
-
+            ## get Ar, H2S flow data and send to plot
             Ar_sccm = self.mfc.get_data(self.mfc.gas_ids['Ar'])['sccm']
             H2S_sccm = self.mfc.get_data(self.mfc.gas_ids['H2S'])['sccm']
-            # self.new_Ar_data.emit(Ar_sccm)
-            # self.new_H2S_data.emit(H2S_sccm)
             self.new_flow_data.emit([Ar_sccm,H2S_sccm])
+            ## organize data into dictionary for saving to csv
+            new_row_dict = {"Timestamp":time(),"Tube Pressure":measured_pressure,
+                            "Zone 1 Temperature":measured_temps[0], "Zone 2 Temperature":measured_temps[1],
+                            "Zone 3 Temperature":measured_temps[2]
+                             }
+            for z in range(3):
+                new_row_dict.update({f'Zone {z+1} Setpoint':self.furnace.getAllSetpoints()[z]})
+            new_row_dict.update(self.mfc.get_data(self.mfc.gas_ids['Ar']))
+            new_row_dict.update(self.mfc.get_data(self.mfc.gas_ids['H2S']))
+            with open(self.save_path,'a',newline='') as csvfile:
+                w = csv.DictWriter(csvfile, new_row_dict.keys())
+                if row == 0:
+                    w.writeheader()
+                w.writerow(new_row_dict)
+                # writer = csv.writer(csvfile, delimiter=' ',
+                            # quotechar='|', quoting=csv.QUOTE_MINIMAL)
+                row +=1 
             QtCore.QThread.msleep(self.delay*1000)
+
+    
 
 class ProcessThread(QtCore.QThread):
     message = QtCore.pyqtSignal(object)

@@ -10,7 +10,7 @@ from TubeFurnaceParams import ProcessParams, OtherParams
 from ControlThreads import LoggingThread, ProcessThread, FillProcessThread, TempLoggingPlot, BasicLoggingPlot, FlowLoggingPlot,CurrentProcessPlot,BoxedPlot
 
 class MainControlWindow(qw.QMainWindow):
-    def __init__(self, logger, testing = False):
+    def __init__(self, logger, save_path, testing = False):
         super().__init__()
         self.testing = testing
         self.logger = logger
@@ -25,7 +25,7 @@ class MainControlWindow(qw.QMainWindow):
 
         self.initUI()
        
-        self.initThreads()
+        self.initThreads(save_path)
 
         ### connect GUI items made in initUI() to threads made in initThreads()
                 ## make logging button a toggle?
@@ -64,7 +64,7 @@ class MainControlWindow(qw.QMainWindow):
             furnace_params.append((self.tree.getValue(si,'Temperature'),self.tree.getValue(si,'Time')))
         self.Furnace.programFurnace(furnace_params)
 
-    def initThreads(self):
+    def initThreads(self,save_path):
         ## get params we need from tree:
         self.delay = self.othertree.p.param('Logging Interval (s)').value()
         self.overpressure_limit = self.othertree.p.param('Overpressure Limit (Torr)').value()
@@ -72,7 +72,7 @@ class MainControlWindow(qw.QMainWindow):
         self.MFC = MFCControl(logger=self.logger,testing=self.testing)
         self.PGauge = PressureGauge(logger=self.logger,testing=self.testing)
         self.Furnace = FurnaceControl(logger=self.logger,testing=self.testing)
-        self.LoggingThread = LoggingThread(logger = self.logger, pgauge = self.PGauge, furnace = self.Furnace, mfc = self.MFC, overpressure = self.overpressure_limit)
+        self.LoggingThread = LoggingThread(logger = self.logger, save_path = save_path, pgauge = self.PGauge, furnace = self.Furnace, mfc = self.MFC, overpressure = self.overpressure_limit)
         self.ProcessThread = ProcessThread(testing = self.testing, logger=self.logger, logthread = self.LoggingThread, pgauge = self.PGauge, furnace = self.Furnace, mfc = self.MFC,ptree = self.tree)
         self.FillThread = FillProcessThread(testing = self.testing, logger=self.logger, pgauge = self.PGauge, furnace = self.Furnace, mfc = self.MFC,tree = self.othertree)
         
@@ -233,7 +233,7 @@ if __name__ == "__main__":
     except:
         pass
 
-    window = MainControlWindow(logger = logger, testing = True)
+    window = MainControlWindow(logger = logger, save_path = f'logs/TubeFurnaceGUI_{timestr}.csv', testing = True)
     
     sys.exit(app.exec())
     
