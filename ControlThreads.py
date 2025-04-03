@@ -425,10 +425,13 @@ class BoxedPlot(qw.QWidget):
         else:
             new_right_data = new_right_data[0]
         xdata,ydata = self.rightTrace.getData()
-        xdata = np.append(xdata,time())
-        # ydata = np.append(ydata,100)
-        ydata = np.append(ydata,new_right_data)
-        self.rightTrace.setData(x=xdata,y=ydata)
+        if xdata is None:
+            self.rightTrace.setData(x=[time()],y=[new_right_data])
+        else:
+            xdata = np.append(xdata,time())
+            # ydata = np.append(ydata,100)
+            ydata = np.append(ydata,new_right_data)
+            self.rightTrace.setData(x=xdata,y=ydata)
         # self.getViewBox().autoRange()
 
     def updateLeftAxis(self,new_left_data):
@@ -436,10 +439,12 @@ class BoxedPlot(qw.QWidget):
         # print(f'Add to left axis: {new_left_data}')
         for i,trace in enumerate(self.plot.listDataItems()):
             xdata,ydata = trace.getData()
-            # print(xdata,ydata) ## debugging
-            xdata = np.append(xdata,time())
-            ydata = np.append(ydata,new_left_data[i])
-            trace.setData(x=xdata,y=ydata)
+            if xdata is None:
+                trace.setData(x=[time()],y=[new_left_data[i]])
+            else:
+                xdata = np.append(xdata,time())
+                ydata = np.append(ydata,new_left_data[i])
+                trace.setData(x=xdata,y=ydata)
         # self.p2.autoRange()
 if __name__ == "__main__":
 
