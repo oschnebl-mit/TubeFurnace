@@ -52,8 +52,9 @@ class LoggingThread(QtCore.QThread):
                              }
             for z in range(3):
                 new_row_dict.update({f'Zone {z+1} Setpoint':self.furnace.getAllSetpoints()[z]})
-            new_row_dict.update(self.mfc.get_data(self.mfc.gas_ids['Ar']))
-            new_row_dict.update(self.mfc.get_data(self.mfc.gas_ids['H2S']))
+            for idstr in ['Ar','H2S']:
+                new_dict = {f'{idstr}_{parameter_name}': parameter_value for parameter_name, parameter_value in self.mfc.get_data(self.mfc.gas_ids[idstr]).items()}
+                new_row_dict.update(new_dict)
             with open(self.save_path,'a',newline='') as csvfile:
                 w = csv.DictWriter(csvfile, new_row_dict.keys())
                 if row == 0:
