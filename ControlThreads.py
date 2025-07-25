@@ -46,9 +46,9 @@ class LoggingThread(QtCore.QThread):
             H2S_sccm = self.mfc.get_data(self.mfc.gas_ids['H2S'])['sccm']
             self.new_flow_data.emit([Ar_sccm,H2S_sccm])
             ## organize data into dictionary for saving to csv
-            new_row_dict = {"Timestamp":time(),"Tube Pressure":measured_pressure,
-                            "Zone 1 Temperature":measured_temps[0], "Zone 2 Temperature":measured_temps[1],
-                            "Zone 3 Temperature":measured_temps[2]
+            new_row_dict = {"timestamp":time(),"Tube Pressure":measured_pressure,
+                            "zone_1_temperature_c":measured_temps[0], "zone_2_temperature_c":measured_temps[1],
+                            "zone_3_temperature_c":measured_temps[2]
                              }
             for z in range(3):
                 new_row_dict.update({f'Zone {z+1} Setpoint':self.furnace.getAllSetpoints()[z]})
