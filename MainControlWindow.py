@@ -78,12 +78,13 @@ class MainControlWindow(qw.QMainWindow):
         ## get params we need from tree:
         self.delay = self.othertree.p.param('Logging Interval (s)').value()
         self.overpressure_limit = self.othertree.p.param('Overpressure Limit (Torr)').value()
+        self.ctrl_zone = self.othertree.p.param('Control Zone').value()
 
         self.MFC = MFCControl(logger=self.logger,testing=self.testing)
         self.PGauge = PressureGauge(logger=self.logger,testing=self.testing)
         self.Furnace = FurnaceControl(logger=self.logger,testing=self.testing)
         self.LoggingThread = LoggingThread(logger = self.logger, save_path = self.save_path, pgauge = self.PGauge, furnace = self.Furnace, mfc = self.MFC, overpressure = self.overpressure_limit)
-        self.ProcessThread = ProcessThread(testing = self.testing, logger=self.logger, logthread = self.LoggingThread, pgauge = self.PGauge, furnace = self.Furnace, mfc = self.MFC,ptree = self.tree)
+        self.ProcessThread = ProcessThread(testing = self.testing, logger=self.logger, logthread = self.LoggingThread, pgauge = self.PGauge, furnace = self.Furnace, mfc = self.MFC,ptree = self.tree,ctrl_zone=self.ctrl_zone)
         self.FillThread = FillProcessThread(testing = self.testing, logger=self.logger, pgauge = self.PGauge, furnace = self.Furnace, mfc = self.MFC,tree = self.othertree)
         
         self.LoggingThread.overpressure_error.connect(self.ProcessThread.abort)
@@ -143,6 +144,7 @@ class MainControlWindow(qw.QMainWindow):
         self.LoggingThread.new_temp_data.connect(self.currentProcessPlot.updateRightAxis)
         self.LoggingThread.new_flow_data.connect(self.currentProcessPlot.updateLeftAxis)
         self.ProcessThread.message.connect(self.currentProcessPlot.message.setText)
+        self.ProcessThread.ctrl_zone = self.othertree.p.param('Control Zone').value()
         self.ProcessThread.start()
             
 

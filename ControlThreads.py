@@ -70,7 +70,7 @@ class LoggingThread(QtCore.QThread):
 class ProcessThread(QtCore.QThread):
     message = QtCore.pyqtSignal(object)
     ''' Thread that controls anneal process. Mostly sets up initial work, then lets logger populate data'''
-    def __init__(self,logger, logthread, testing, pgauge, mfc, furnace, ptree, delay = 30):
+    def __init__(self,logger, logthread, testing, pgauge, mfc, furnace, ptree, ctrl_zone, delay = 30):
         super().__init__()
         self.logger = logger
         self.logthread = logthread
@@ -80,12 +80,14 @@ class ProcessThread(QtCore.QThread):
         self.Furnace = furnace
         self.delay = delay
         self.tree = ptree
+        self.ctrl_zone = control_zone
         self.running = False
 
 
     def run(self):
         self.running = True
         self.message.emit('Programming furnace')
+        self.ctrl_zone = self.tree.
         ## for programFurnace need to construct a list of tuples: (SP, TM)
         furnace_params = []
         for si in range(1,len(self.tree.p.children())):
@@ -123,10 +125,11 @@ class ProcessThread(QtCore.QThread):
         # while True:
         while self.running:
             # currentTemp = self.logthread.new_temp_data[1]
-            currentTemp = self.Furnace.getAllTemperatures()[1] ## zone 2
+            currentTemp = self.Furnace.getAllTemperatures[int(self.ctrl_zone)-1]
+            #currentTemp = self.Furnace.getAllTemperatures()[1] ## zone 2
             currentDelta = currentTemp - temperature
-            self.message.emit(f'Waiting for {temperature} C on zone 2. Current delta {currentDelta} C')
-            self.logger.info(f'Waiting for {temperature} C on zone 2. Current delta {currentDelta} C')
+            self.message.emit(f'Waiting for {temperature} C on zone {self.ctrl_zone}. Current delta {currentDelta} C')
+            self.logger.info(f'Waiting for {temperature} C on zone {self.ctrl_zone}. Current delta {currentDelta} C')
             if abs(currentDelta) < tolerance:
                 break
             sleep(60)
