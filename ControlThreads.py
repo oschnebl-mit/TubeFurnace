@@ -87,7 +87,7 @@ class ProcessThread(QtCore.QThread):
     def run(self):
         self.running = True
         self.message.emit('Programming furnace')
-        #self.ctrl_zone = self.tree.
+        self.ctrl_zone = self.tree.
         ## for programFurnace need to construct a list of tuples: (SP, TM)
         furnace_params = []
         for si in range(1,len(self.tree.p.children())):
