@@ -233,7 +233,7 @@ if __name__ == "__main__":
     except:
         pass
 
-    window = MainControlWindow(logger = logger, testing = False)
+    window = MainControlWindow(logger = logger, testing = True)
     
     sys.exit(app.exec())
     
