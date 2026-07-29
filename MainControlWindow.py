@@ -1,4 +1,4 @@
-import sys, logging
+import sys, logging,os
 from time import time, sleep, strftime
 from PyQt5 import QtGui,QtCore
 import PyQt5.QtWidgets as qw 
@@ -8,12 +8,14 @@ import pyqtgraph as pg
 from TubeFurnaceInstruments import PressureGauge, MFCControl, FurnaceControl
 from TubeFurnaceParams import ProcessParams, OtherParams
 from ControlThreads import LoggingThread, ProcessThread, FillProcessThread, TempLoggingPlot, BasicLoggingPlot, FlowLoggingPlot,CurrentProcessPlot,BoxedPlot
+from plot_tube_furnace_log import plot_log_file
 
 class MainControlWindow(qw.QMainWindow):
-    def __init__(self, logger, testing = False):
+    def __init__(self, logger, save_path, testing = False):
         super().__init__()
         self.testing = testing
         self.logger = logger
+        self.save_path = save_path
         self.setWindowTitle('Control Panel')
 
         self.loggingOn = False
@@ -30,6 +32,7 @@ class MainControlWindow(qw.QMainWindow):
         ### connect GUI items made in initUI() to threads made in initThreads()
                 ## make logging button a toggle?
         self.startLoggingButton.clicked.connect(self.startLogging)
+        self.saveFigButton.clicked.connect(self.saveFig)
         self.fillButton.clicked.connect(self.runFillProcess)
         self.startProcessButton.clicked.connect(self.runAnnealProcess)
         self.abortProcessButton.clicked.connect(self.abortAll)
@@ -55,6 +58,13 @@ class MainControlWindow(qw.QMainWindow):
             print('start logging')
             self.LoggingThread.start()
 
+    def saveFig(self):
+        print(self.save_path)
+        if os.path.exists(self.save_path):
+            plot_log_file(self.save_path)
+        else:
+            print("No data saved")
+
     def programFurnace(self):
         ## meant to program furnace without starting, if user wants to check
         furnace_params = []
@@ -68,12 +78,13 @@ class MainControlWindow(qw.QMainWindow):
         ## get params we need from tree:
         self.delay = self.othertree.p.param('Logging Interval (s)').value()
         self.overpressure_limit = self.othertree.p.param('Overpressure Limit (Torr)').value()
+        self.ctrl_zone = self.othertree.p.param('Control Zone').value()
 
         self.MFC = MFCControl(logger=self.logger,testing=self.testing)
         self.PGauge = PressureGauge(logger=self.logger,testing=self.testing)
         self.Furnace = FurnaceControl(logger=self.logger,testing=self.testing)
-        self.LoggingThread = LoggingThread(logger = self.logger, pgauge = self.PGauge, furnace = self.Furnace, mfc = self.MFC, overpressure = self.overpressure_limit)
-        self.ProcessThread = ProcessThread(testing = self.testing, logger=self.logger, logthread = self.LoggingThread, pgauge = self.PGauge, furnace = self.Furnace, mfc = self.MFC,ptree = self.tree)
+        self.LoggingThread = LoggingThread(logger = self.logger, save_path = self.save_path, pgauge = self.PGauge, furnace = self.Furnace, mfc = self.MFC, overpressure = self.overpressure_limit)
+        self.ProcessThread = ProcessThread(testing = self.testing, logger=self.logger, logthread = self.LoggingThread, pgauge = self.PGauge, furnace = self.Furnace, mfc = self.MFC,ptree = self.tree,ctrl_zone=self.ctrl_zone)
         self.FillThread = FillProcessThread(testing = self.testing, logger=self.logger, pgauge = self.PGauge, furnace = self.Furnace, mfc = self.MFC,tree = self.othertree)
         
         self.LoggingThread.overpressure_error.connect(self.ProcessThread.abort)
@@ -133,6 +144,7 @@ class MainControlWindow(qw.QMainWindow):
         self.LoggingThread.new_temp_data.connect(self.currentProcessPlot.updateRightAxis)
         self.LoggingThread.new_flow_data.connect(self.currentProcessPlot.updateLeftAxis)
         self.ProcessThread.message.connect(self.currentProcessPlot.message.setText)
+        self.ProcessThread.ctrl_zone = self.othertree.p.param('Control Zone').value()
         self.ProcessThread.start()
             
 
@@ -187,7 +199,7 @@ class MainControlWindow(qw.QMainWindow):
 
         self.startLoggingButton = qw.QPushButton("Start Logging") ## in the future make this a toggle?
         self.startLoggingButton.setCheckable(True)
-        # self.startLoggingButton.setChecked(False)
+        self.saveFigButton = qw.QPushButton("Save Process Figure")
         self.fillButton = qw.QPushButton("Bring tube to atmospheric pressure")
         self.startProcessButton = qw.QPushButton("Start Anneal")
         self.abortProcessButton = qw.QPushButton("Abort Process")
@@ -203,6 +215,7 @@ class MainControlWindow(qw.QMainWindow):
 
         ## grid layout adds as                     r c rs cs (last 2 are rowspan, colspan)
         layout.addWidget(self.tree,                0,0,5, 1)
+        layout.addWidget(self.startProcessButton,  5,0,1, 1)
         layout.addWidget(self.programFurnaceButton,6,0,1, 1)
         layout.addWidget(self.currentProcessPlot,  7,0,6, 2)
 
@@ -210,7 +223,7 @@ class MainControlWindow(qw.QMainWindow):
         layout.addWidget(self.startLoggingButton,  3,1,1, 1)
         # layout.addWidget(self.delayInputLabel,   1,1,1, 1)
         # layout.addWidget(self.delayInput,        2,1,1, 1)
-        layout.addWidget(self.startProcessButton,  4,1,1, 1)
+        layout.addWidget(self.saveFigButton,       4,1,1, 1)
         layout.addWidget(self.fillButton,          5,1,1, 1)
         layout.addWidget(self.abortProcessButton,  6,1,1, 1)
 
@@ -233,7 +246,6 @@ if __name__ == "__main__":
     except:
         pass
 
-    window = MainControlWindow(logger = logger, testing = True)
-    
+    window = MainControlWindow(logger = logger, testing = True)    
     sys.exit(app.exec())
     

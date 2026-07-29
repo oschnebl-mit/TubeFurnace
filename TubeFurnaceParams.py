@@ -94,6 +94,7 @@ class OtherParams(ParameterTree):
         self.params = [
             {'name':'Logging Interval (s)','type':'int','value':30},
             {'name':'Overpressure Limit (Torr)','type':'int','value':800},
+            {'name':'Control Zone','type','list','limits':['1','2','3'],'value':'2'},
             {'name':'Fill Parameters','type':'group','children':[
                 {'name':'Approach Pressure (Torr)','type':'int','value':745},
                 {'name':'Fill Pressure (Torr)','type':'int','value':750},
