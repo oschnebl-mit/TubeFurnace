@@ -305,8 +305,6 @@ class FlowLoggingPlot(pg.PlotWidget):
 
 
 
-
-
 class BasicLoggingPlot(pg.PlotWidget):
     def __init__(self,ylabel,yunits,color):
         super().__init__()
@@ -373,7 +371,7 @@ if __name__ == "__main__":
     except:
         pass
 
-    window = MainControlWindow(logger = logger, testing = False)
+    window = MainControlWindow(logger = logger, testing = True)
     
     sys.exit(app.exec())
 
