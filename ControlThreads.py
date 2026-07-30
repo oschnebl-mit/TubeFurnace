@@ -228,13 +228,14 @@ class FillProcessThread(QtCore.QThread):
 
 
 class TempLoggingPlot(pg.PlotWidget):
-    def __init__(self,ylabel,yunits,color):
+    def __init__(self,ctrl_zone,ylabel,yunits,color):
+        # ctrl_zone should be 1,2,3
         super().__init__()
         self.getPlotItem().showGrid(x=True,y=True,alpha=0.5)
         self.trace_list = []
         for zone in (1,2,3):
             #  pen = pg.mkPen(color='{}{:02x}'.format(color, alpha), width=lw,connect="finite")
-            if zone == 2:
+            if zone == int(ctrl_zone):
                 w = 4
                 alpha = 250
             else:

@@ -186,7 +186,7 @@ class MainControlWindow(qw.QMainWindow):
         self.tree = ProcessParams()
         self.othertree = OtherParams()
 
-        self.tempPlot = TempLoggingPlot('Temperature','C',self.tempColor)
+        self.tempPlot = TempLoggingPlot(self.othertree.p.param('Control Zone').value(),'Temperature','C',self.tempColor)
         # print('made temp plot')
         self.pressurePlot = BasicLoggingPlot('Pressure','Torr',self.pressureColor)
         # print('made pressure plot')
