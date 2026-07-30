@@ -246,6 +246,6 @@ if __name__ == "__main__":
     except:
         pass
 
-    window = MainControlWindow(logger = logger, testing = True)    
+    window = MainControlWindow(logger = logger, save_path=f'./logs/TubeFurnaceGUI_{timestr}.csv', testing = True)    
     sys.exit(app.exec())
     

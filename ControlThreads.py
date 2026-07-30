@@ -80,7 +80,7 @@ class ProcessThread(QtCore.QThread):
         self.Furnace = furnace
         self.delay = delay
         self.tree = ptree
-        self.ctrl_zone = control_zone
+        self.ctrl_zone = ctrl_zone
         self.running = False
 
 
