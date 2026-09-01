@@ -6,7 +6,7 @@ import pyqtgraph as pg
 # import numpy as np
 
 from TubeFurnaceInstruments import PressureGauge, MFCControl, FurnaceControl
-from TubeFurnaceParams import ProcessParams, OtherParams
+from TubeFurnaceParams import ProcessParams, OtherParams, ALL_GAS_IDS
 from ControlThreads import LoggingThread, ProcessThread, FillProcessThread, TempLoggingPlot, BasicLoggingPlot, FlowLoggingPlot,CurrentProcessPlot,BoxedPlot
 from plot_tube_furnace_log import plot_log_file
 
@@ -39,6 +39,8 @@ class MainControlWindow(qw.QMainWindow):
         # self.abortProcessButton.clicked.connect(self.ProcessThread.abort())
         self.delayInput.returnPressed.connect(self.updateLoggingDelay)
         self.programFurnaceButton.clicked.connect(self.programFurnace)
+        self.addSegmentButton.clicked.connect(self.addSegment)
+        self.addGasButton.clicked.connect(self.addGas)
 
         self.show()
 
@@ -68,11 +70,30 @@ class MainControlWindow(qw.QMainWindow):
     def programFurnace(self):
         ## meant to program furnace without starting, if user wants to check
         furnace_params = []
-        for si in range(1,len(self.tree.p.children())):
+        for si in range(1,len(self.tree.p.children())+1):
             # if self.tree.getValue(si,'Time') == 0:
             #     break
             furnace_params.append((self.tree.getValue(si,'Temperature'),self.tree.getValue(si,'Time')))
         self.Furnace.programFurnace(furnace_params)
+
+    def addSegment(self):
+        if not self.tree.addSegment():
+            print('Reached maximum number of segments')
+
+    def addGas(self):
+        gas_name = self.gasSelector.currentText()
+        if not gas_name:
+            return
+        if self.tree.addGas(gas_name):
+            self.refreshGasSelector()
+        else:
+            print(f'Could not add gas {gas_name}')
+
+    def refreshGasSelector(self):
+        self.gasSelector.clear()
+        remaining = [g for g in ALL_GAS_IDS if g not in self.tree.gas_list]
+        self.gasSelector.addItems(remaining)
+        self.addGasButton.setEnabled(bool(remaining))
 
     def initThreads(self):
         ## get params we need from tree:
@@ -208,16 +229,27 @@ class MainControlWindow(qw.QMainWindow):
         self.delayInput.setValidator(QtGui.QIntValidator())
         self.programFurnaceButton = qw.QPushButton("Program Furnace")
         self.programFurnaceButton.setToolTip("Optional. Set furnace program without running.")
+        self.addSegmentButton = qw.QPushButton("Add Segment")
+        self.gasSelector = qw.QComboBox()
+        self.addGasButton = qw.QPushButton("Add Gas")
+        self.refreshGasSelector()
 
         self.othertree.log_interval_change.connect(self.updateLoggingDelay)
 
-
+        self.gasRow = qw.QWidget()
+        gasRowLayout = qw.QHBoxLayout()
+        gasRowLayout.setContentsMargins(0,0,0,0)
+        gasRowLayout.addWidget(self.gasSelector)
+        gasRowLayout.addWidget(self.addGasButton)
+        self.gasRow.setLayout(gasRowLayout)
 
         ## grid layout adds as                     r c rs cs (last 2 are rowspan, colspan)
         layout.addWidget(self.tree,                0,0,5, 1)
         layout.addWidget(self.startProcessButton,  5,0,1, 1)
         layout.addWidget(self.programFurnaceButton,6,0,1, 1)
-        layout.addWidget(self.currentProcessPlot,  7,0,6, 2)
+        layout.addWidget(self.addSegmentButton,    7,0,1, 1)
+        layout.addWidget(self.gasRow,               8,0,1, 1)
+        layout.addWidget(self.currentProcessPlot,  9,0,6, 2)
 
         layout.addWidget(self.othertree,           0,1,3, 1)
         layout.addWidget(self.startLoggingButton,  3,1,1, 1)
@@ -231,13 +263,15 @@ class MainControlWindow(qw.QMainWindow):
         layout.addWidget(self.pressurePlot,        4,2,5, 1)
         layout.addWidget(self.flowPlot,            9,2,4, 1)
 
-        for r in range(12):
+        for r in range(15):
             layout.setRowStretch(r,1)
 
 if __name__ == "__main__":
     timestr = strftime('%Y%m%d-%H%M%S')
     logger = logging.getLogger(__name__)
-    logging.basicConfig(filename=f'logs/TubeFurnaceGUI_{timestr}.log',level=logging.DEBUG)
+    log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
+    os.makedirs(log_path, exist_ok=True)
+    logging.basicConfig(filename=os.path.join(log_path, f'TubeFurnaceGUI_{timestr}.log'),level=logging.DEBUG)
     logger.addHandler(logging.NullHandler())
     app = qw.QApplication(sys.argv)
     try:
@@ -246,6 +280,6 @@ if __name__ == "__main__":
     except:
         pass
 
-    window = MainControlWindow(logger = logger, save_path=f'./logs/TubeFurnaceGUI_{timestr}.csv', testing = True)    
+    window = MainControlWindow(logger = logger, save_path=os.path.join(log_path, f'TubeFurnaceGUI_{timestr}.csv'), testing = True)
     sys.exit(app.exec())
-    
+

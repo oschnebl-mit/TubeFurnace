@@ -2,87 +2,46 @@ import pyqtgraph as pg
 from pyqtgraph.parametertree import Parameter, ParameterTree
 from pyqtgraph import QtCore
 
+MAX_SEGMENTS = 16 ## FurnaceControl.programFurnace rejects more than this
+ALL_GAS_IDS = ['N2','Ar','O2','FG','H2S','H2Se'] ## must match MFCControl.gas_ids keys
+
 class ProcessParams(ParameterTree):
-    def __init__(self):
+    def __init__(self,n_segments=3,gases=('Ar','H2S')):
         super().__init__()
 
-        self.params = [
-            {'name':'Segment 1','type':'group','expanded':False,'children':[
-                {'name':'Time','type':'int', 'value':'20'},
-                {'name':'Temperature','type':'int','value':'300'},
-                {'name':'Ar Flow','type':'int','value':'75'},
-                {'name':'H2S Flow','type':'int','value':'0'},
-                {'name':'Wait for','type':'list','limits':['Time','Temp']}
-            ]},
-            {'name':'Segment 2','type':'group','expanded':False,'children':[
-                {'name':'Time','type':'int', 'value':'20'},
-                {'name':'Temperature','type':'int','value':'300'},
-                {'name':'Ar Flow','type':'int','value':'75'},
-                {'name':'H2S Flow','type':'int','value':'0'},
-                {'name':'Wait for','type':'list','limits':['Time','Temp']}
-            ]},
-            {'name':'Segment 3','type':'group','expanded':False,'children':[
-                {'name':'Time','type':'int', 'value':'20'},
-                {'name':'Temperature','type':'int','value':'300'},
-                {'name':'Ar Flow','type':'int','value':'75'},
-                {'name':'H2S Flow','type':'int','value':'0'},
-                {'name':'Wait for','type':'list','limits':['Time','Temp']}
-            ]},
-            {'name':'Segment 4','type':'group','expanded':False,'children':[
-                {'name':'Time','type':'int', 'value':'20'},
-                {'name':'Temperature','type':'int','value':'300'},
-                {'name':'Ar Flow','type':'int','value':'75'},
-                {'name':'H2S Flow','type':'int','value':'0'},
-                {'name':'Wait for','type':'list','limits':['Time','Temp']}
-            ]},
-            {'name':'Segment 5','type':'group','expanded':False,'children':[
-                {'name':'Time','type':'int', 'value':'0'},
-                {'name':'Temperature','type':'int','value':'25'},
-                {'name':'Ar Flow','type':'int','value':'0'},
-                {'name':'H2S Flow','type':'int','value':'0'},
-                {'name':'Wait for','type':'list','limits':['Time','Temp']}
-            ]},
-            {'name':'Segment 6','type':'group','expanded':False,'children':[
-                {'name':'Time','type':'int', 'value':'0'},
-                {'name':'Temperature','type':'int','value':'25'},
-                {'name':'Ar Flow','type':'int','value':'0'},
-                {'name':'H2S Flow','type':'int','value':'0'},
-                {'name':'Wait for','type':'list','limits':['Time','Temp']}
-            ]},
-            {'name':'Segment 7','type':'group','expanded':False,'children':[
-                {'name':'Time','type':'int', 'value':'0'},
-                {'name':'Temperature','type':'int','value':'25'},
-                {'name':'Ar Flow','type':'int','value':'0'},
-                {'name':'H2S Flow','type':'int','value':'0'},
-                {'name':'Wait for','type':'list','limits':['Time','Temp']}
-            ]},
-            {'name':'Segment 8','type':'group','expanded':False,'children':[
-                {'name':'Time','type':'int', 'value':'0'},
-                {'name':'Temperature','type':'int','value':'25'},
-                {'name':'Ar Flow','type':'int','value':'0'},
-                {'name':'H2S Flow','type':'int','value':'0'}
-            ]},
-            {'name':'Segment 9','type':'group','expanded':False,'children':[
-                {'name':'Time','type':'int', 'value':'0'},
-                {'name':'Temperature','type':'int','value':'25'},
-                {'name':'Ar Flow','type':'int','value':'0'},
-                {'name':'H2S Flow','type':'int','value':'0'},
-                {'name':'Wait for','type':'list','limits':['Time','Temp']}
-            ]},
-            {'name':'Segment 10','type':'group','expanded':False,'children':[
-                {'name':'Time','type':'int', 'value':'0'},
-                {'name':'Temperature','type':'int','value':'25'},
-                {'name':'Ar Flow','type':'int','value':'0'},
-                {'name':'H2S Flow','type':'int','value':'0'},
-                {'name':'Wait for','type':'list','limits':['Time','Temp']}
-            ]}
-        ]
+        self.gas_list = list(gases)
+        self.params = [self._make_segment(i) for i in range(1,n_segments+1)]
 
         self.p = Parameter.create(name='self.params',type='group',children=self.params)
         self.setParameters(self.p,showTop=False)
 
+    def _make_segment(self,segment_number,time=20,temperature=300):
+        children = [
+            {'name':'Time','type':'int','value':time},
+            {'name':'Temperature','type':'int','value':temperature},
+        ]
+        for gas in self.gas_list:
+            children.append({'name':f'{gas} Flow','type':'int','value':0})
+        children.append({'name':'Wait for','type':'list','limits':['Time','Temp']})
+        return {'name':f'Segment {segment_number}','type':'group','expanded':False,'children':children}
+
     def getValue(self,segment:int, child):
         return self.p.param(f'Segment {segment}',child).value()
+
+    def addSegment(self):
+        n_segments = len(self.p.children())
+        if n_segments >= MAX_SEGMENTS:
+            return False
+        self.p.addChild(self._make_segment(n_segments+1))
+        return True
+
+    def addGas(self,gas_name):
+        if gas_name not in ALL_GAS_IDS or gas_name in self.gas_list:
+            return False
+        self.gas_list.append(gas_name)
+        for segment in self.p.children():
+            segment.insertChild(len(segment.children())-1,{'name':f'{gas_name} Flow','type':'int','value':0}) ## before 'Wait for'
+        return True
 
 class OtherParams(ParameterTree):
     

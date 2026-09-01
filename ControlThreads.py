@@ -90,31 +90,31 @@ class ProcessThread(QtCore.QThread):
         #self.ctrl_zone = self.tree.
         ## for programFurnace need to construct a list of tuples: (SP, TM)
         furnace_params = []
-        for si in range(1,len(self.tree.p.children())):
+        for si in range(1,len(self.tree.p.children())+1):
             # if self.tree.getValue(si,'Time') == 0:
             #     break
             furnace_params.append((self.tree.getValue(si,'Temperature'),self.tree.getValue(si,'Time')))
         self.Furnace.programFurnace(furnace_params)
         self.message.emit('Starting furnace')
         ## start the furnace running the program defined above
-        self.Furnace.startFurnace() 
-        for si in range(1,len(self.tree.children())): ## TypeError: object of type 'builtin_function_or_method' has no len()
+        self.Furnace.startFurnace()
+        for si in range(1,len(self.tree.p.children())+1):
             if not self.running:
                 break ## figured out this is the best way to abort a thread
             ## Add condition to finish if segment is all zeros
-            Ar_flow = int(self.tree.getValue(si,'Ar Flow'))
-            H2S_flow = int(self.tree.getValue(si,'H2S Flow'))
+            flows = {gas: int(self.tree.getValue(si,f'{gas} Flow')) for gas in self.tree.gas_list}
             time = int(self.tree.getValue(si,'Time'))
             temperature = int(self.tree.getValue(si,'Temperature'))
-            self.MFC.set_sccm('Ar',Ar_flow)
-            self.MFC.set_sccm('H2S',H2S_flow)
+            for gas, flow in flows.items():
+                self.MFC.set_sccm(gas,flow)
+            flow_desc = ', '.join(f'{gas} flow to {flow}' for gas, flow in flows.items())
             if self.tree.getValue(si,'Wait for') == 'Time':
-                message = f'Setting Ar flow to {Ar_flow} and H2S flow to {H2S_flow} sccm. Waiting for {time} min'
+                message = f'Setting {flow_desc} sccm. Waiting for {time} min'
                 self.logger.info(message)
                 self.message.emit(message)
                 sleep(time*60) ## in minutes
             elif self.tree.getValue(si,'Wait for') == 'Temp':
-                message = f'Setting Ar flow to {Ar_flow} and H2S flow to {H2S_flow} sccm. Waiting for {temperature} C.'
+                message = f'Setting {flow_desc} sccm. Waiting for {temperature} C.'
                 self.logger.info(message)
                 self.message.emit(message)
                 self.waitForTemp(temperature)
